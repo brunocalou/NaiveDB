@@ -1,0 +1,4 @@
+#Compile and run
+``` bash
+g++ *.cpp -o main && ./main
+```

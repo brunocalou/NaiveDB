@@ -1,0 +1,3 @@
+dre:int32
+nome:char:255
+sobrenome:char:255
