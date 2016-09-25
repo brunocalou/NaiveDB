@@ -37,6 +37,7 @@ private:
     string name;
     string path;
     string header_file_path;
+    vector<long long> * header; 
     
     /**
      * Save a value to the file using the correct type and size. The file
@@ -46,16 +47,29 @@ private:
      
      /**
       * Inserts the registry_position on the header file. The insertion will
-      * append the new registry_position to the end of the header file
+      * append the new registry_position to the end of the header file and will
+      * update the header variable
       */
      bool insertOnHeaderFile(HeaderFile * header_file);
+     
+     /**
+      * Load the table header from the memory
+      */
+      void loadHeader();
     
 public:
 
     /**
+     * The constructor loads the table header from the memory, if any
      * @constructor
+     * @see Table::loadHeader
      */
     Table(string name);
+    
+    /**
+     * @destructor
+     */
+     ~Table();
     
     /**
      * Import the scheme using the Scheme standard method
@@ -68,14 +82,27 @@ public:
      */
     void setScheme(Scheme scheme);
     
+    /*****************************************
+     ************* QUERY METHODS *************
+     *****************************************/
+    
     /**
-     * Performs a query
+     * Insert a row using the key as the primary key. The row will
+     * be inserted at the end of the table file and no consistency test
+     * is made to ensure uniqueness of any element
+     * @param key - the primary key
+     * @param row - the table row (primary key not included). Note that
+     *              the order of elements is important and it's expected
+     *              to be the same as the order on the scheme
+     * @return the number of rows affected
      */
-     bool insert(string key, vector<string> row);
+     int insert(string key, vector<string> row);
+     
+     
      
      /*****************************************
-     ********** CONVENIENCE METHODS **********
-     *****************************************/
+      ********** CONVENIENCE METHODS **********
+      *****************************************/
      
      /**
       * Read a CSV file, convert and export it to a binary file
@@ -101,6 +128,12 @@ Table::Table(string name) {
     this->name = name;
     this->path = name + ".dat";
     this->header_file_path = name + "_h.dat";
+    this->header = new vector<long long>();
+    loadHeader();
+}
+
+Table::~Table() {
+    delete this->header;
 }
 
 void Table::importScheme(const string & path) {
@@ -109,6 +142,19 @@ void Table::importScheme(const string & path) {
 
 void Table::setScheme(Scheme scheme) {
     this->scheme = scheme;
+}
+
+void Table::loadHeader() {
+    ifstream file;
+    file.open(header_file_path.c_str(), ios::binary);
+    
+    while (file.good()) {
+        HeaderFile header;
+        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
+        this->header->push_back(header.registry_position);
+    }
+    
+    file.close();
 }
 
 void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *scheme_col) {
@@ -132,8 +178,9 @@ void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *sch
     }
 }
 
-bool Table::insert(string key, vector<string> row) {
+int Table::insert(string key, vector<string> row) {
     //TODO: create a insert method that receives the file as parameter to improve the performance while adding many rows
+    //TODO: Handle exceptions and return 0 on failure
     ofstream file;
     file.open(path.c_str(), ios::binary | ios::app);
     
@@ -173,13 +220,16 @@ bool Table::insert(string key, vector<string> row) {
     
     file.close();
     
-    return true;
+    return 1;
 }
 
 bool Table::insertOnHeaderFile(HeaderFile * header_file) {
     ofstream file;
     file.open(header_file->path.c_str(), ios::binary | ios::app);
     file.write(reinterpret_cast<char *> (& header_file->registry_position), sizeof(header_file->registry_position));
+    
+    header->push_back(header_file->registry_position);
+    
     file.close();
 }
 
@@ -188,12 +238,10 @@ void Table::printHeaderFile(int number_of_values) {
     file.open(header_file_path.c_str(), ios::binary);
     int counter = 0;
     
-    while (!file.eof() && counter != number_of_values) {
+    while (file.good() && counter != number_of_values) {
         HeaderFile header;
-        // The variable position will be the same type of header.registry_position
-        decltype(header.registry_position) position;
-        file.read(reinterpret_cast<char *> (&position), sizeof(position));
-        cout << position << endl;
+        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
+        cout << header.registry_position << endl;
         counter ++;
     }
     
@@ -209,7 +257,7 @@ void Table::print(int number_of_values) {
     vector<SchemeCol>* scheme_cols = scheme.getCols();
     int counter = 0;
     
-    while (!file.eof() && counter != number_of_values) {
+    while (file.good() && counter != number_of_values) {
         //Import the header
         RegistryHeader header;
         file.read(header.table_name, sizeof(header.table_name));
@@ -260,7 +308,6 @@ void Table::convertFromCSV(const string & path) {
     
     ifstream file;
     file.open(path.c_str());
-    
     
     if (file.is_open()) {
         //Header
