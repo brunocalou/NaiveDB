@@ -7,10 +7,26 @@
 #include <time.h>
 #include <string.h>
 
+/**
+ * Stores the header of a registry. The header is saved for each registry
+ * e.g: | HEADER | ROW_1_COL_1 | ROW_1_COL_2 | HEADER | ROW_2_COL1 | ROW_2_COL_2 | 
+ */
 struct RegistryHeader {
     char table_name[255];
     unsigned registry_size; // size of the registry, header included
     time_t time_stamp;
+};
+
+/**
+ * Stores the position of every RegistryHeader of a table
+ * e.g: for a database like | HEADER | 64_BITS_BODY | HEADER | 32_BITS_BODY | HEADER | ...
+ *      the Header file will be like | 0 | 64 + HEADER_SIZE | 64 + 32 + 2 * HEADER_SIZE | ...
+ * Note that the header file contains registry_positions with FIXED size, so each position is
+ * stored by the same amount of bits (in this case, long long (64 bits))
+ */
+struct HeaderFile {
+    long long registry_position;
+    string path;
 };
 
 class Table {
@@ -26,26 +42,26 @@ private:
     Scheme scheme;
     string name;
     string path;
+    string header_file_path;
     
     /**
      * Save a value to the file using the correct type and size. The file
      * will not be opened nor closed inside this method
      */
     void convertAndSave(ofstream *file, string * value, SchemeCol * scheme_col);
+     
+     /**
+      * Inserts the registry_position on the header file. The insertion will
+      * append the new registry_position to the end of the header file
+      */
+     bool insertOnHeaderFile(HeaderFile * header_file);
     
 public:
 
     /**
      * @constructor
      */
-    Table(string name, string table_path);
-
-    /**
-    * Import a CSV file and convert it to a map of vectors. The first element
-    * is the map key and the others are the elements of the vector. Note that
-    * the table will be stored in memory
-    */
-    void importCSV(const string & path);
+    Table(string name);
     
     /**
      * Import the scheme using the Scheme standard method
@@ -57,6 +73,22 @@ public:
      * @see Scheme
      */
     void setScheme(Scheme scheme);
+    
+    /**
+     * Performs a query
+     */
+     bool insert(string key, vector<string> row);
+     
+     /*****************************************
+     ********** CONVENIENCE METHODS **********
+     *****************************************/
+     
+    /**
+     * Import a CSV file and convert it to a map of vectors. The first element
+     * is the map key and the others are the elements of the vector. Note that
+     * the table will be stored in memory
+     */
+    void importCSV(const string & path);
     
     /**
      * Import a table from a binary file to the memory. The binary file must have been generated
@@ -77,14 +109,17 @@ public:
     bool exportBin();
     
     /**
-     * Performs a query
+     * Print the header file (for debugging only)
+     * @param number_of_values the number of values to print. If set to -1
+     *        all the file wil be printed
      */
-     bool insert(string key, vector<string> row);
+    void printHeaderFile(int number_of_values = -1);
 };
 
-Table::Table(string name, string table_path) {
+Table::Table(string name) {
     this->name = name;
-    this->path = table_path;
+    this->path = name + ".dat";
+    this->header_file_path = name + "_h.dat";
 }
 
 void Table::importCSV(const string & path) {
@@ -244,6 +279,12 @@ bool Table::insert(string key, vector<string> row) {
     
     // table[key] = row;
     
+    //Save the header position on the header file
+    HeaderFile header_file;
+    header_file.path = this->header_file_path;
+    header_file.registry_position = file.tellp(); // Get the current position on the file stream
+    insertOnHeaderFile(&header_file);
+    
     //Save the header
     RegistryHeader header;
     strncpy(header.table_name, &name.c_str()[0], sizeof(header.table_name));
@@ -277,4 +318,25 @@ bool Table::insert(string key, vector<string> row) {
     return true;
 }
 
+bool Table::insertOnHeaderFile(HeaderFile * header_file) {
+    ofstream file;
+    file.open(header_file->path.c_str(), ios::binary | ios::app);
+    file.write(reinterpret_cast<char *> (& header_file->registry_position), sizeof(header_file->registry_position));
+    file.close();
+}
+
+void Table::printHeaderFile(int number_of_values) {
+    ifstream file;
+    file.open(header_file_path.c_str(), ios::binary);
+    int counter = 0;
+    
+    while (!file.eof() && counter != number_of_values) {
+        long long position;
+        file.read(reinterpret_cast<char *> (&position), sizeof(position));
+        cout << position << endl;
+        counter ++;
+    }
+    
+    file.close();
+}
 #endif //TABLE_H
