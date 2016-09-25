@@ -3,9 +3,11 @@
 
 #include "util.h"
 #include "scheme.h"
+#include "cursor.h"
 #include <fstream>
 #include <time.h>
 #include <string.h>
+#include <algorithm>
 
 /**
  * Stores the header of a registry. The header is saved for each registry
@@ -96,6 +98,30 @@ public:
      * @return the _id of the inserted item (used as primary key)
      */
      int insert(vector<string> row);
+     
+     /**
+      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
+      * because the FROM is for the table instance.
+      * Supported arguments: SELECT, *, WHERE, =, <, >, <=, >=, !=
+      * e.g.: query("SELECT * WHERE _id=123") -> returns the only row where the _id is equals to 123
+      * e.g.2: query("select name, age where age > 10 and name='bruno'") -> returns the name and age where
+      *        the age > 10 and the name is equal to bruno (case insensitive)
+      * e.g.3: query("SELECT *") -> returns all the columns
+      * @param q - the query on a raw string format
+      * @return the cursor associated with the query
+      */
+     Cursor query(string q);
+     
+     /**
+      * Perform a query
+      * @see Table::query(string)
+      * @return the cursor associated with the query
+      */
+     Cursor query(
+            vector<string> & select,
+            vector<string> & where_args,
+            vector<string> & where_comparators,
+            vector<string> & where_values);
      
      /*****************************************
       ********** CONVENIENCE METHODS **********
@@ -315,6 +341,159 @@ void Table::print(int number_of_values) {
     }
     
     file.close();
+}
+
+Cursor Table::query(string q) {
+    //Transform the query to lower case
+    std::transform(q.begin(), q.end(), q.begin(), ::tolower);
+    
+    //Store the select arguments.
+    //e.g.: SELECT arg1, arg2
+    vector<string> select;
+    
+    //Store the where arguments, values and comparators
+    //e.g.: WHERE arg1 = val1, arg2 > val2,
+    vector<string> where_args;
+    vector<string> where_comparators;
+    vector<string> where_vals;
+    
+    //Helper variables to store the parsing state
+    bool parsing_select = false;
+    bool parsing_where = false;
+    
+    //Hold if a word is beeing parsed at the moment. If a space ' ' or a comma ',' is
+    //parsed, the variable is set false
+    bool parsing_word = false;
+    
+    bool parsing_where_arg = false;
+    bool parsing_where_comparator = false;
+    bool parsing_where_val = false;
+    
+    string string_buffer;
+    
+    bool ignore_space = false;
+    
+    for (string::iterator it = q.begin(); it != q.end(); it++) {
+        char character = (*it);
+        
+        if (character == '\'') {
+            ignore_space = !ignore_space;
+            continue;
+            
+        } else if (character != ' ' || character != ',') {
+            parsing_word = true;
+            
+        } else {
+            if (character == ' ' && ignore_space) {
+                parsing_word = true;
+            } else {
+                parsing_word = false;
+            }
+        }
+        
+        // Check for the select word
+        if (!parsing_select && !parsing_where) {
+            if (character != ' ') {
+                string_buffer += character;
+            }
+            // cout << string_buffer << endl;
+            if (string_buffer == "select") {
+                parsing_select = true;
+                string_buffer.clear();
+            } else if (string_buffer == "where") {
+                cout << "Changing to WHERE" << endl;
+                parsing_where = true;
+                parsing_where_arg = true;
+                parsing_select = false;                
+                string_buffer.clear();
+            }
+        } else if (character != ' ' || ignore_space) {
+            if (parsing_select) {
+                //Ignore spaces
+                if (character == ',') {
+                    //Add the string_buffer to the where_args
+                    where_args.push_back(string_buffer);
+                    cout << string_buffer << endl;
+                    string_buffer.clear();
+                } else {
+                    //If a word is beeing parsed, add the character to the string buffer,
+                    //if not, there are two words separated by a space. In this case, the
+                    //select arguments are finished
+                    if (parsing_word) {
+                        string_buffer += character;
+                    } else {
+                        parsing_select = false;
+                        where_args.push_back(string_buffer);
+                        cout << string_buffer << endl;
+                        string_buffer.clear();
+                    }
+                }
+                
+            } else if (parsing_where) {
+                if (character == ',') {
+                    if (parsing_where_val) {
+                        where_vals.push_back(string_buffer);
+                        cout << "Where value = " << string_buffer << endl;
+                        string_buffer.clear();
+                    }
+                    parsing_where_arg = true;
+                    parsing_where_comparator = false;
+                    parsing_where_val = false;
+                } else if (parsing_word) {
+                    if (parsing_where_arg) {
+                        if (character == '=' || character == '<' || character == '>' || character == '!') {
+                            //The argument was parsed, move to the comparator
+                            parsing_where_arg = false;
+                            parsing_where_comparator = true;
+                            where_args.push_back(string_buffer);
+                            cout << "Where arg = " << string_buffer << endl;
+                            string_buffer.clear();
+                        }
+                    } else if (parsing_where_comparator) {
+                        if (character != '=' || character != '<' || character != '>' || character != '!') {
+                            //The comparator was parsed, move to the where value
+                            parsing_where_comparator = false;
+                            parsing_where_val = true;
+                            where_comparators.push_back(string_buffer);
+                            cout << "Where comparator = " << string_buffer << endl;
+                            string_buffer.clear();
+                        }
+                    }
+                    
+                    string_buffer += character;
+                }
+            }
+        } else if (character == ' ') {
+            if (!string_buffer.empty()) {
+                if (parsing_select) {
+                    select.push_back(string_buffer);
+                    cout << "F Select = " << string_buffer << endl;
+                    string_buffer.clear();
+                    parsing_select = false;
+                }
+            }
+        }
+    }
+    if (parsing_select) {
+        select.push_back(string_buffer);
+        cout << "Final select = " << string_buffer << endl;
+        
+    } else if (parsing_where && parsing_where_val) {
+        where_vals.push_back(string_buffer);
+        cout << "Final where value = " << string_buffer << endl;
+    }
+    
+    return query(select, where_args, where_comparators, where_vals);
+}
+
+Cursor Table::query(vector<string> & select, vector<string> & where_args, vector<string> & where_comparators, vector<string> & where_values) {
+    //Store the query result
+    vector<vector <string> > result;
+    
+    //TODO: Make the query method
+    
+    Cursor cursor(scheme, result);
+    return cursor;
 }
 
 void Table::convertFromCSV(const string & path) {
