@@ -1,5 +1,5 @@
 #include "util.h"
-#include "Table.h"
+#include "table.h"
 
 using namespace std;
 
