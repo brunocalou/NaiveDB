@@ -17,6 +17,11 @@ class Table {
 private:
     static const unsigned HEADER_SIZE = sizeof(RegistryHeader);
     
+    /**
+     * Hashmap to store the table. It's used only when importing or exporting the
+     * whole table
+     * @see Table::importCSV, Table::exportBin, Table::importBin
+     */
     map<string, vector<string> > table;
     Scheme scheme;
     string name;
@@ -37,7 +42,8 @@ public:
 
     /**
     * Import a CSV file and convert it to a map of vectors. The first element
-    * is the map key and the others are the elements of the vector
+    * is the map key and the others are the elements of the vector. Note that
+    * the table will be stored in memory
     */
     void importCSV(const string & path);
     
@@ -53,8 +59,8 @@ public:
     void setScheme(Scheme scheme);
     
     /**
-     * Import a table from a binary file. The binary file must have been generated
-     * using the exportBin method
+     * Import a table from a binary file to the memory. The binary file must have been generated
+     * using the exportBin method. Note that all the table will be stored in memory
      * @see Table::exportBin
      */
     void importBin();
@@ -63,6 +69,9 @@ public:
      * Export a table to a binary file. The header is exported for each registry
      * e.g.: | HEADER | ROW_1_COL_1 | ROW_1_COL_2 | HEADER | ROW_2_COL1 | ROW_2_COL_2
      * The HEADER is saved as | TABLE_NAME | REGISTRY_SIZE | TIME_STAMP |
+     * Note that the data must have been imported from a CSV file for this method run
+     * correctly because operations like Table::insert will not affect the Table::table variable
+     * @see Table::importCSV
      * @return true if the export has succeeded, false otherwise
      */
     bool exportBin();
@@ -186,7 +195,7 @@ void Table::importBin() {
         
         //TODO: find where the bug is
         //the last element is garbage, for some reason. So, delete it
-        table.erase(key);
+        // table.erase(key);
         cout << endl;
     }
     
@@ -233,7 +242,7 @@ bool Table::insert(string key, vector<string> row) {
     ofstream file;
     file.open(path.c_str(), ios::binary | ios::app);
     
-    table[key] = row;
+    // table[key] = row;
     
     //Save the header
     RegistryHeader header;
