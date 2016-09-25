@@ -11,6 +11,7 @@ using namespace std;
 
 enum SchemeType {
     INT32,
+    INT64,
     CHAR,
     FLOAT,
     DOUBLE//,
@@ -27,6 +28,7 @@ struct SchemeCol {
             case INT32:
             case FLOAT:
                 return sizeof(float) * (array_size + 1);
+            case INT64:
             case DOUBLE:
                 return sizeof(double) * (array_size + 1);
             // case BOOLEAN:
@@ -39,6 +41,12 @@ struct SchemeCol {
     }
 };
 
+/**
+ * Defines the structure of a table row. Note that the _id is inserted automatically and
+ * it's used as the primary key
+ * e.g.:
+ * | _id:int64 (primary key) | name:char:255 | lastname:char:255 | age:int32 |
+ */
 class Scheme {
 private:
     vector<SchemeCol> cols;
@@ -74,6 +82,12 @@ public:
 
 Scheme::Scheme() {
     size = -1;
+    SchemeCol _id;
+    _id.key = "_id";
+    _id.type = INT64;
+    _id.array_size = 0;
+    
+    cols.push_back(_id);
 }
 
 void Scheme::import(const string & path) {

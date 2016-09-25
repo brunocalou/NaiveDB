@@ -1,4 +1,4 @@
 #Compile and run
 ``` bash
-g++ *.cpp -o main && ./main
+g++ *.cpp -o main --std=c++11 && ./main
 ```

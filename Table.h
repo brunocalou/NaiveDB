@@ -87,18 +87,15 @@ public:
      *****************************************/
     
     /**
-     * Insert a row using the key as the primary key. The row will
-     * be inserted at the end of the table file and no consistency test
-     * is made to ensure uniqueness of any element
-     * @param key - the primary key
+     * Insert a row at the end of the table. Note that no consistency test
+     * is made to ensure uniqueness of any element and the primary key is managed
+     * internally (auto increment)
      * @param row - the table row (primary key not included). Note that
      *              the order of elements is important and it's expected
      *              to be the same as the order on the scheme
-     * @return the number of rows affected
+     * @return the _id of the inserted item (used as primary key)
      */
-     int insert(string key, vector<string> row);
-     
-     
+     int insert(vector<string> row);
      
      /*****************************************
       ********** CONVENIENCE METHODS **********
@@ -175,10 +172,14 @@ void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *sch
         double value = atof((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
         cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
+    } else if (scheme_col->type == INT64) {
+        long long value = std::stoll((*string_value).c_str());
+        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
+        cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
     }
 }
 
-int Table::insert(string key, vector<string> row) {
+int Table::insert(vector<string> row) {
     //TODO: create a insert method that receives the file as parameter to improve the performance while adding many rows
     //TODO: Handle exceptions and return 0 on failure
     ofstream file;
@@ -202,13 +203,21 @@ int Table::insert(string key, vector<string> row) {
     
     cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
     
+    //Push the _id to the row
+    long long _id = this->header->size() - 1;
+    string _id_str;
+    
+    std::stringstream strstream;
+    strstream << _id;
+    strstream >> _id_str;
+    
+    //Insert the _id on the first position so it matches the SchemeCol
+    row.insert(row.begin(), _id_str);
+    
     //Export the table according to the scheme
     vector<SchemeCol>* scheme_cols = scheme.getCols();
     
-    //Save the key
-    convertAndSave(&file, &key, &scheme_cols->at(0));
-    
-    int scheme_col_position = 1;
+    int scheme_col_position = 0;
     
     for (vector<string>::iterator row_it = row.begin(); row_it != row.end(); row_it++) {
         //Iterate through the row and save the values
@@ -269,32 +278,37 @@ void Table::print(int number_of_values) {
         //Read and convert the values from the file
         for (vector<SchemeCol>::iterator it = scheme_cols->begin(); it != scheme_cols->end(); it++) {
             SchemeCol & scheme_col = *it;
-            ostringstream stream;
+            // ostringstream stream;
             
             if (scheme_col.type == INT32) {
                 int value;
                 file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
                 cout << "INT32 " << value << " | ";
-                stream << value;
+                // stream << value;
             } else if (scheme_col.type == CHAR) {
                 char value[scheme_col.getSize()];
                 file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
                 cout << "CHAR " << value << " | ";
-                stream << value;
+                // stream << value;
             } else if (scheme_col.type == FLOAT) {
                 float value;
                 file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
                 cout << "FLOAT " << value << " | ";
-                stream << value;
+                // stream << value;
             } else if (scheme_col.type == DOUBLE) {
                 double value;
                 file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
                 cout << "DOUBLE " << value << " | ";
-                stream << value;
+                // stream << value;
+            }  else if (scheme_col.type == INT64) {
+                long long value;
+                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+                cout << "INT64 " << value << " | ";
+                // stream << value;
             }
             
-            string string_value;
-            string_value = stream.str();
+            // string string_value;
+            // string_value = stream.str();
         }
         cout << endl;
         counter ++;
@@ -316,13 +330,9 @@ void Table::convertFromCSV(const string & path) {
         //Lines
         while (getline(file, line)) {
             vector<string> words = split(line, ',');
-            string key = words.at(0);
-            
-            //Erase the key from the vector
-            words.erase(words.begin());
             
             // Insert the line on the database
-            insert(key, words);
+            insert(words);
         }
         file.close();
     } else {
