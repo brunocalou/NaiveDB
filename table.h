@@ -4,6 +4,7 @@
 #include "util.h"
 #include "scheme.h"
 #include "cursor.h"
+#include "tablebenchmark.h"
 #include <fstream>
 #include <time.h>
 #include <string.h>
@@ -39,7 +40,9 @@ private:
     string name;
     string path;
     string header_file_path;
-    vector<long long> * header; 
+    vector<long long> * header;
+    
+    friend class TableBenchmark;
     
     /**
      * Save a value to the file using the correct type and size. The file

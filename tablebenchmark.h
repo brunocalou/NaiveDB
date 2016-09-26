@@ -4,9 +4,13 @@
 #include "table.h"
 
 class TableBenchmark {
-    friend class Table;
 
 public:
+    
+    Table * table;
+    
+    TableBenchmark(Table * table);
+    
     /*****************************************
      *********** BENCHMARK METHODS ***********
      *****************************************/
@@ -40,52 +44,56 @@ public:
       */
      vector<string> bPlusTreeQuery(string _id);
      
-     /*****************************************
-      ******** SEQUENCE QUERY METHODS *********
-      *****************************************/
-     
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index using binary search
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > binaryIndexSequenceQuery(string _id, int min, int max);
+     vector<string> binaryIndexQuery(string _id);
+     
+     /*****************************************
+      ********** RANGE QUERY METHODS **********
+      *****************************************/
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the table file
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > sequentialFileSequenceQuery(string _id, int min, int max);
+     vector<vector<string> > sequentialFileRangeQuery(string _id, int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > sequentialIndexSequenceQuery(string _id, int min, int max);
+     vector<vector<string> > sequentialIndexRangeQuery(string _id, int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index using a B+ tree
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > bPlusTreeSequenceQuery(string _id, int min, int max);
+     vector<vector<string> > bPlusTreeRangeQuery(string _id, int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index using binary search
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > binaryIndexSequenceQuery(string _id, int min, int max);
+     vector<vector<string> > binaryIndexRangeQuery(string _id, int min, int max);
 };
 
-voit TableBenchmark::runBenchmark() {
+TableBenchmark::TableBenchmark(Table * table) {
+    this->table = table;
+}
+
+void TableBenchmark::runBenchmark() {
     //TODO: Get the time for each method and print on the screen
-    benchmark.sequentialFileQuery('123');
-    benchmark.sequentialIndexQuery('123');
-    benchmark.bPlusTreeQuery('123');
-    benchmark.binaryIndexQuery('123');
+    sequentialFileQuery("123");
+    sequentialIndexQuery("123");
+    bPlusTreeQuery("123");
+    binaryIndexQuery("123");
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
@@ -109,27 +117,29 @@ vector<string> TableBenchmark::binaryIndexQuery(string _id) {
     return row;
 }
 
-vector<vector<string> > TableBenchmark::binaryIndexSequenceQuery(string _id, int min, int max) {
+/*****************************************
+ ********** RANGE QUERY METHODS **********
+ *****************************************/
+
+vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(string _id, int min, int max) {
     vector<vector<string> > rows;
     
     return rows;
 }
-vector<vector<string> > TableBenchmark::sequentialFileSequenceQuery(string _id, int min, int max) {
+
+vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(string _id, int min, int max) {
     vector<vector<string> > rows;
     
     return rows;
 }
-vector<vector<string> > TableBenchmark::sequentialIndexSequenceQuery(string _id, int min, int max) {
+
+vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(string _id, int min, int max) {
     vector<vector<string> > rows;
     
     return rows;
 }
-vector<vector<string> > TableBenchmark::bPlusTreeSequenceQuery(string _id, int min, int max) {
-    vector<vector<string> > rows;
-    
-    return rows;
-}
-vector<vector<string> > TableBenchmark::binaryIndexSequenceQuery(string _id, int min, int max) {
+
+vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(string _id, int min, int max) {
     vector<vector<string> > rows;
     
     return rows;

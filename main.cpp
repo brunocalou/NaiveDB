@@ -1,5 +1,5 @@
-#include "util.h"
-#include "table.h"
+// #include "util.h"
+// #include "table.h"
 #include "tablebenchmark.h"
 
 using namespace std;
@@ -14,7 +14,7 @@ int main() {
     Cursor cursor = table.query("SELECT *");
     table.query("SELECT _id, name, points WHERE _id=123, name = 'bruno alves', points > - 50, points < 100");
     
-    TableBenchmark benchmark;
+    TableBenchmark benchmark(&table);
     benchmark.runBenchmark();
     return 0;
 }
