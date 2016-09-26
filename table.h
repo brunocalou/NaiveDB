@@ -34,7 +34,7 @@ struct HeaderFile {
 
 class Table {
 private:
-    static const unsigned HEADER_SIZE = sizeof(RegistryHeader);
+    unsigned HEADER_SIZE;
 
     Scheme scheme;
     string name;
@@ -156,6 +156,11 @@ Table::Table(string name) {
     this->header_file_path = name + "_h.dat";
     this->header = new vector<long long>();
     loadHeader();
+    
+    RegistryHeader reg_header;
+    Table::HEADER_SIZE = sizeof(reg_header.table_name) + sizeof(reg_header.registry_size) + sizeof(reg_header.time_stamp);
+    cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
+    
 }
 
 Table::~Table() {
