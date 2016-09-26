@@ -60,28 +60,28 @@ public:
       * The query is made by searching on the table file
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > sequentialFileRangeQuery(string _id, int min, int max);
+     vector<vector<string> > sequentialFileRangeQuery(int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > sequentialIndexRangeQuery(string _id, int min, int max);
+     vector<vector<string> > sequentialIndexRangeQuery(int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index using a B+ tree
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > bPlusTreeRangeQuery(string _id, int min, int max);
+     vector<vector<string> > bPlusTreeRangeQuery(int min, int max);
      
      /**
       * Perform a query where min < _id < max
       * The query is made by searching on the in-memory index using binary search
       * @return the table rows with the selected ids
       */
-     vector<vector<string> > binaryIndexRangeQuery(string _id, int min, int max);
+     vector<vector<string> > binaryIndexRangeQuery(int min, int max);
 };
 
 TableBenchmark::TableBenchmark(Table * table) {
@@ -94,16 +94,22 @@ void TableBenchmark::runBenchmark() {
     sequentialIndexQuery("123");
     bPlusTreeQuery("123");
     binaryIndexQuery("123");
+    
+    sequentialFileRangeQuery(120, 125);
+    sequentialIndexRangeQuery(120, 125);
+    bPlusTreeRangeQuery(120, 125);
+    binaryIndexRangeQuery(120, 125);
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
+    cout << "Sequential file query" << endl;
+    
     vector<string> row;
     long long _number_id = std::stoll(_id.c_str());
     
     ifstream file;
     file.open(table->path.c_str(), ios::binary);
     
-    cout << "sequential file query" << endl;
     
     vector<SchemeCol>* scheme_cols = table->scheme.getCols();
     
@@ -123,6 +129,7 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
             row.push_back(_id);
             cout << "Found " << row_id << endl;
             cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
+            cout << "INT64 " << _id << " | ";
         
             //Read and convert the values from the file
             for (vector<SchemeCol>::iterator it = scheme_cols->begin() + 1; it != scheme_cols->end(); it++) {
@@ -181,17 +188,26 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
     return row;
 }
 vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
+    cout << "Sequential index query" << endl;
     vector<string> row;
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
     
     return row;
 }
 vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
+    cout << "B+ tree query" << endl;
     vector<string> row;
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
     
     return row;
 }
 vector<string> TableBenchmark::binaryIndexQuery(string _id) {
+    cout << "Binary index query" << endl;
     vector<string> row;
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
     
     return row;
 }
@@ -200,25 +216,29 @@ vector<string> TableBenchmark::binaryIndexQuery(string _id) {
  ********** RANGE QUERY METHODS **********
  *****************************************/
 
-vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(string _id, int min, int max) {
+vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int max) {
+    cout << "Sequential file range query" << endl;
     vector<vector<string> > rows;
     
     return rows;
 }
 
-vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(string _id, int min, int max) {
+vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int max) {
+    cout << "Sequential index range query" << endl;
     vector<vector<string> > rows;
     
     return rows;
 }
 
-vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(string _id, int min, int max) {
+vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
+    cout << "B+ tree range query" << endl;
     vector<vector<string> > rows;
     
     return rows;
 }
 
-vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(string _id, int min, int max) {
+vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(int min, int max) {
+    cout << "Binary index range query" << endl;
     vector<vector<string> > rows;
     
     return rows;

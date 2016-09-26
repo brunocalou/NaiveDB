@@ -9,6 +9,7 @@
 #include <time.h>
 #include <string.h>
 #include <algorithm>
+#include <utility> //std::pair
 
 /**
  * Stores the header of a registry. The header is saved for each registry
@@ -23,11 +24,12 @@ struct RegistryHeader {
 /**
  * Stores the position of every RegistryHeader of a table
  * e.g: for a database like | HEADER | 64_BITS_BODY | HEADER | 32_BITS_BODY | HEADER | ...
- *      the Header file will be like | 0 | 64 + HEADER_SIZE | 64 + 32 + 2 * HEADER_SIZE | ...
+ *      the Header file will be like | ID_0 | 0 | ID_1 | 64 + HEADER_SIZE | ID_2 | 64 + 32 + 2 * HEADER_SIZE | ...
  * Note that the header file contains registry_positions with FIXED size, so each position is
  * stored by the same amount of bits (in this case, long long (64 bits))
  */
 struct HeaderFile {
+    long long _id;
     long long registry_position;
     string path;
 };
@@ -40,7 +42,7 @@ private:
     string name;
     string path;
     string header_file_path;
-    vector<long long> * header;
+    vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > * header; // _id, registry_position
     
     friend class TableBenchmark;
     
@@ -50,17 +52,17 @@ private:
      */
     void convertAndSave(ofstream *file, string * value, SchemeCol * scheme_col);
      
-     /**
-      * Inserts the registry_position on the header file. The insertion will
-      * append the new registry_position to the end of the header file and will
-      * update the header variable
-      */
-     bool insertOnHeaderFile(HeaderFile * header_file);
+    /**
+     * Inserts the registry_position on the header file. The insertion will
+     * append the new registry_position to the end of the header file and will
+     * update the header variable
+     */
+    bool insertOnHeaderFile(HeaderFile * header_file);
      
-     /**
-      * Load the table header from the memory
-      */
-      void loadHeader();
+    /**
+     * Load the table header from the memory
+     */
+    void loadHeader();
     
 public:
 
@@ -74,7 +76,7 @@ public:
     /**
      * @destructor
      */
-     ~Table();
+    ~Table();
     
     /**
      * Import the scheme using the Scheme standard method
@@ -100,40 +102,40 @@ public:
      *              to be the same as the order on the scheme
      * @return the _id of the inserted item (used as primary key)
      */
-     int insert(vector<string> row);
+    int insert(vector<string> row);
      
-     /**
-      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
-      * because the FROM is for the table instance.
-      * Supported arguments: SELECT, *, WHERE, =, <, >, <=, >=, !=
-      * e.g.: query("SELECT * WHERE _id=123") -> returns the only row where the _id is equals to 123
-      * e.g.2: query("select name, age where age > 10 and name='bruno'") -> returns the name and age where
-      *        the age > 10 and the name is equal to bruno (case insensitive)
-      * e.g.3: query("SELECT *") -> returns all the columns
-      * @param q - the query on a raw string format
-      * @return the cursor associated with the query
-      */
-     Cursor query(string q);
+    /**
+     * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
+     * because the FROM is for the table instance.
+     * Supported arguments: SELECT, *, WHERE, =, <, >, <=, >=, !=
+     * e.g.: query("SELECT * WHERE _id=123") -> returns the only row where the _id is equals to 123
+     * e.g.2: query("select name, age where age > 10 and name='bruno'") -> returns the name and age where
+     *        the age > 10 and the name is equal to bruno (case insensitive)
+     * e.g.3: query("SELECT *") -> returns all the columns
+     * @param q - the query on a raw string format
+     * @return the cursor associated with the query
+     */
+    Cursor query(string q);
      
-     /**
-      * Perform a query
-      * @see Table::query(string)
-      * @return the cursor associated with the query
-      */
-     Cursor query(
+    /**
+     * Perform a query
+     * @see Table::query(string)
+     * @return the cursor associated with the query
+     */
+    Cursor query(
             vector<string> & select,
             vector<string> & where_args,
             vector<string> & where_comparators,
             vector<string> & where_values);
      
-     /*****************************************
-      ********** CONVENIENCE METHODS **********
-      *****************************************/
+    /*****************************************
+     ********** CONVENIENCE METHODS **********
+     *****************************************/
      
-     /**
-      * Read a CSV file, convert and export it to a binary file
-      */
-     void convertFromCSV(const string & path);
+    /**
+     * Read a CSV file, convert and export it to a binary file
+     */
+    void convertFromCSV(const string & path);
     
     /**
      * Print the table binary file (for debugging only)
@@ -154,7 +156,7 @@ Table::Table(string name) {
     this->name = name;
     this->path = name + ".dat";
     this->header_file_path = name + "_h.dat";
-    this->header = new vector<long long>();
+    this->header = new vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> >();
     loadHeader();
     
     RegistryHeader reg_header;
@@ -181,8 +183,9 @@ void Table::loadHeader() {
     
     while (file.good()) {
         HeaderFile header;
+        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
         file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        this->header->push_back(header.registry_position);
+        this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
     }
     
     file.close();
@@ -222,6 +225,7 @@ int Table::insert(vector<string> row) {
     //Save the header position on the header file
     HeaderFile header_file;
     header_file.path = this->header_file_path;
+    header_file._id = this->header->size();
     header_file.registry_position = file.tellp(); // Get the current position on the file stream
     insertOnHeaderFile(&header_file);
     
@@ -238,11 +242,10 @@ int Table::insert(vector<string> row) {
     cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
     
     //Push the _id to the row
-    long long _id = this->header->size() - 1;
     string _id_str;
     
     std::stringstream strstream;
-    strstream << _id;
+    strstream << header_file._id;
     strstream >> _id_str;
     
     //Insert the _id on the first position so it matches the SchemeCol
@@ -269,9 +272,13 @@ int Table::insert(vector<string> row) {
 bool Table::insertOnHeaderFile(HeaderFile * header_file) {
     ofstream file;
     file.open(header_file->path.c_str(), ios::binary | ios::app);
+    file.write(reinterpret_cast<char *> (& header_file->_id), sizeof(header_file->_id));
     file.write(reinterpret_cast<char *> (& header_file->registry_position), sizeof(header_file->registry_position));
     
-    header->push_back(header_file->registry_position);
+    header->push_back(
+        pair<decltype(header_file->_id), decltype(header_file->registry_position)> (
+            header_file->_id,
+            header_file->registry_position));
     
     file.close();
 }
@@ -283,8 +290,9 @@ void Table::printHeaderFile(int number_of_values) {
     
     while (file.good() && counter != number_of_values) {
         HeaderFile header;
+        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
         file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        cout << header.registry_position << endl;
+        cout << header._id << " " << header.registry_position << endl;
         counter ++;
     }
     
