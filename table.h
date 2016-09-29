@@ -103,6 +103,12 @@ public:
      * @return the _id of the inserted item (used as primary key)
      */
     int insert(vector<string> row);
+    
+    /**
+     * Get a line from the file, given the registry position.
+     * @return a vector containing the _id and the row content
+     */
+    vector<string> getRow(long long registry_position);
      
     /**
      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
@@ -300,63 +306,23 @@ void Table::printHeaderFile(int number_of_values) {
 }
 
 void Table::print(int number_of_values) {
-    ifstream file;
-    file.open(path.c_str(), ios::binary);
-    
     cout << "Print" << endl;
-    
-    vector<SchemeCol>* scheme_cols = scheme.getCols();
     int counter = 0;
-    
-    while (file.good() && counter != number_of_values) {
-        //Import the header
-        RegistryHeader header;
-        file.read(header.table_name, sizeof(header.table_name));
-        file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
-        file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
+    while (counter != number_of_values) {
         
-        cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
-    
-        //Read and convert the values from the file
-        for (vector<SchemeCol>::iterator it = scheme_cols->begin(); it != scheme_cols->end(); it++) {
-            SchemeCol & scheme_col = *it;
-            // ostringstream stream;
-            
-            if (scheme_col.type == INT32) {
-                int value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "INT32 " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == CHAR) {
-                char value[scheme_col.getSize()];
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "CHAR " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == FLOAT) {
-                float value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "FLOAT " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == DOUBLE) {
-                double value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "DOUBLE " << value << " | ";
-                // stream << value;
-            }  else if (scheme_col.type == INT64) {
-                long long value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "INT64 " << value << " | ";
-                // stream << value;
-            }
-            
-            // string string_value;
-            // string_value = stream.str();
+        if (counter == header->size()) {
+            break;
         }
-        cout << endl;
+        vector<string> row = getRow(header->at(counter).second);
+        
+        //print the line
+        for (vector<string>::iterator it = row.begin(); it != row.end(); it++) {
+            cout << (*it) << " | ";
+        }
+        
         counter ++;
     }
-    
-    file.close();
+    cout << endl;
 }
 
 Cursor Table::query(string q) {
@@ -533,5 +499,67 @@ void Table::convertFromCSV(const string & path) {
     } else {
         cout << "Unable to open file - " << path << endl;
     }
+}
+
+vector<string> Table::getRow(long long registry_position) {
+    ifstream file;
+    file.open(path.c_str(), ios::binary);
+    
+    // Set the file position
+    file.seekg(registry_position);
+    
+    vector<SchemeCol>* scheme_cols = scheme.getCols();
+    vector<string> row;
+    
+    //Import the header
+    RegistryHeader header;
+    file.read(header.table_name, sizeof(header.table_name));
+    file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
+    file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
+    
+    // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
+
+    //Read and convert the values from the file
+    for (vector<SchemeCol>::iterator it = scheme_cols->begin(); it != scheme_cols->end(); it++) {
+        SchemeCol & scheme_col = *it;
+        ostringstream stream;
+        
+        if (scheme_col.type == INT32) {
+            int value;
+            file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+            // cout << "INT32 " << value << " | ";
+            stream << value;
+        } else if (scheme_col.type == CHAR) {
+            char value[scheme_col.getSize()];
+            file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+            // cout << "CHAR " << value << " | ";
+            stream << value;
+        } else if (scheme_col.type == FLOAT) {
+            float value;
+            file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+            // cout << "FLOAT " << value << " | ";
+            stream << value;
+        } else if (scheme_col.type == DOUBLE) {
+            double value;
+            file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+            // cout << "DOUBLE " << value << " | ";
+            stream << value;
+        }  else if (scheme_col.type == INT64) {
+            long long value;
+            file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
+            // cout << "INT64 " << value << " | ";
+            stream << value;
+        }
+        
+        string string_value;
+        string_value = stream.str();
+        
+        // Push the value to the line vector
+        row.push_back(string_value);
+    }
+    cout << endl;
+    file.close();
+    
+    return row;
 }
 #endif //TABLE_H
