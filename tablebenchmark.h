@@ -113,7 +113,6 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
     ifstream file;
     file.open(table->path.c_str(), ios::binary);
     
-    
     vector<SchemeCol>* scheme_cols = table->scheme.getCols();
     
     while (file.good()) {
@@ -221,6 +220,49 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
     cout << "Sequential file range query" << endl;
     vector<vector<string> > rows;
     
+    ifstream file;
+    file.open(table->path.c_str(), ios::binary);
+    
+    vector<SchemeCol>* scheme_cols = table->scheme.getCols();
+    
+    bool found = false;
+    
+    while (file.good()) {
+        //Import the header
+        RegistryHeader header;
+        file.read(header.table_name, sizeof(header.table_name));
+        file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
+        file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
+        
+        //Read the id
+        long long row_id;
+        file.read(reinterpret_cast<char *> (&row_id), scheme_cols->begin()->getSize());        
+        
+        if (row_id == min) {
+            found = true;
+        }
+        
+        if (row_id > max) {
+            break;
+        }
+        if (found) {
+            rows.push_back(table->getRow((long long) file.tellg() - table->HEADER_SIZE - sizeof(row_id)));
+        }
+        // Go to the next registry
+        // The current position is right after the _id
+        // | HEADER | ID | REST_OF_THE_BODY | HEADER |
+        //               ^
+        // Must set the position to the next header
+        file.seekg((long long) file.tellg() + header.registry_size - table->HEADER_SIZE - sizeof(row_id));
+    
+    }
+    
+    file.close();
+    
+    if (rows.size() > 0) {
+        cout << "Found" << endl;
+        print(&rows);
+    }
     return rows;
 }
 
