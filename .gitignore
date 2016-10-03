@@ -1,3 +1,8 @@
 *.dat
 main
 .vscode
+*.o
+*.db
+bpt_cli
+bpt_unit_test
+bpt_dump_numbers

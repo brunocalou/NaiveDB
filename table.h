@@ -34,6 +34,7 @@ struct HeaderFile {
     string path;
 };
 
+typedef vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > header_t;
 class Table {
 private:
     unsigned HEADER_SIZE;
@@ -42,7 +43,7 @@ private:
     string name;
     string path;
     string header_file_path;
-    vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > * header; // _id, registry_position
+    header_t * header; // _id, registry_position
     
     friend class TableBenchmark;
     
@@ -162,7 +163,7 @@ Table::Table(string name) {
     this->name = name;
     this->path = name + ".dat";
     this->header_file_path = name + "_h.dat";
-    this->header = new vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> >();
+    this->header = new header_t();
     loadHeader();
     
     RegistryHeader reg_header;
@@ -557,7 +558,7 @@ vector<string> Table::getRow(long long registry_position) {
         // Push the value to the line vector
         row.push_back(string_value);
     }
-    cout << endl;
+    // cout << endl;
     file.close();
     
     return row;

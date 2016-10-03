@@ -2,6 +2,9 @@
 #define TABLEBENCHMARK_H
 
 #include "table.h"
+#include "BPlusTree/bpt.h"
+
+using bpt::bplus_tree;
 
 class TableBenchmark {
 
@@ -45,7 +48,7 @@ public:
      vector<string> bPlusTreeQuery(string _id);
      
      /**
-      * Perform a query where min < _id < max
+      * Perform a query where only the _id is compared to the value.
       * The query is made by searching on the in-memory index using binary search
       * @return the table rows with the selected ids
       */
@@ -192,6 +195,16 @@ vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
     vector<string> row;
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
+    for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
+        // compare the _id
+        // cout << it->second << endl;
+        if (std::stoll((_id).c_str()) == it->first) {
+            cout << "Found " << _id << endl;
+            row = table->getRow(it->second);
+            break;
+        }
+    }
+    print(row);
     
     return row;
 }
@@ -201,6 +214,25 @@ vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
     
+    //Create the b+ tree
+    bplus_tree tree("test.db", true);
+    
+    //Fill the b+ tree
+    for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
+        std::ostringstream stream;
+        stream << it->first;
+        const char* key = stream.str().c_str();
+        tree.insert(key, it->second);
+    }
+    
+    //Search the b+ tree
+    bpt::value_t value;
+    tree.search(_id.c_str(), &value);
+    if (value != -1) {
+        cout << "Found " << _id << endl;
+        row = table->getRow(value);
+        print(row);
+    }
     return row;
 }
 vector<string> TableBenchmark::binaryIndexQuery(string _id) {
