@@ -93,13 +93,13 @@ TableBenchmark::TableBenchmark(Table * table) {
 
 void TableBenchmark::runBenchmark() {
     //TODO: Get the time for each method and print on the screen
-    // sequentialFileQuery("123");
-    // sequentialIndexQuery("123");
-    // bPlusTreeQuery("123");
+    sequentialFileQuery("123");
+    sequentialIndexQuery("123");
+    bPlusTreeQuery("123");
     binaryIndexQuery("123");
     
     // sequentialFileRangeQuery(120, 125);
-    // sequentialIndexRangeQuery(120, 125);
+    sequentialIndexRangeQuery(120, 125);
     // bPlusTreeRangeQuery(120, 125);
     // binaryIndexRangeQuery(120, 125);
 }
@@ -204,7 +204,7 @@ vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
             break;
         }
     }
-    print(row);
+    print(&row);
     
     return row;
 }
@@ -231,7 +231,7 @@ vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
     if (value != -1) {
         cout << "Found " << _id << endl;
         row = table->getRow(value);
-        print(row);
+        print(&row);
     }
     return row;
 }
@@ -249,7 +249,7 @@ vector<string> TableBenchmark::binaryIndexQuery(string _id) {
     if (pair.first == _id_number) {
         cout << "Found " << _id << endl;
         row = table->getRow(pair.second);
-        print(row);
+        print(&row);
     }
     return row;
 }
@@ -268,7 +268,25 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
 vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int max) {
     cout << "Sequential index range query" << endl;
     vector<vector<string> > rows;
+    bool found = false;
+    for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
+        // compare the _id
+        // cout << it->second << endl;
+        if (min == it->first) {
+            found = true;
+        }
+        
+        if (it->first > max) {
+            break;
+        }
+        if (found) {
+            // cout << "Found " << _id << endl;
+            rows.push_back(table->getRow(it->second));
+        }
+    }
     
+    cout << "Found" << endl;
+    print(&rows);
     return rows;
 }
 
