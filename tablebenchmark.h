@@ -93,15 +93,15 @@ TableBenchmark::TableBenchmark(Table * table) {
 
 void TableBenchmark::runBenchmark() {
     //TODO: Get the time for each method and print on the screen
-    sequentialFileQuery("123");
-    sequentialIndexQuery("123");
-    bPlusTreeQuery("123");
+    // sequentialFileQuery("123");
+    // sequentialIndexQuery("123");
+    // bPlusTreeQuery("123");
     binaryIndexQuery("123");
     
-    sequentialFileRangeQuery(120, 125);
-    sequentialIndexRangeQuery(120, 125);
-    bPlusTreeRangeQuery(120, 125);
-    binaryIndexRangeQuery(120, 125);
+    // sequentialFileRangeQuery(120, 125);
+    // sequentialIndexRangeQuery(120, 125);
+    // bPlusTreeRangeQuery(120, 125);
+    // binaryIndexRangeQuery(120, 125);
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
@@ -238,9 +238,19 @@ vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
 vector<string> TableBenchmark::binaryIndexQuery(string _id) {
     cout << "Binary index query" << endl;
     vector<string> row;
+    long long _id_number = stoll(_id.c_str());
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
+    int idx = distance(table->header->begin(), lower_bound(table->header->begin(),table->header->end(), 
+       make_pair(_id_number, numeric_limits<long long>::min())));
     
+    // If the found index is equals to the desired index, the _id was found
+    auto pair = table->header->at(idx);
+    if (pair.first == _id_number) {
+        cout << "Found " << _id << endl;
+        row = table->getRow(pair.second);
+        print(row);
+    }
     return row;
 }
 
