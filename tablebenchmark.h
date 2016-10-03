@@ -98,7 +98,7 @@ void TableBenchmark::runBenchmark() {
     bPlusTreeQuery("123");
     binaryIndexQuery("123");
     
-    // sequentialFileRangeQuery(120, 125);
+    sequentialFileRangeQuery(120, 125);
     sequentialIndexRangeQuery(120, 125);
     // bPlusTreeRangeQuery(120, 125);
     // binaryIndexRangeQuery(120, 125);
@@ -128,52 +128,10 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
         file.read(reinterpret_cast<char *> (&row_id), scheme_cols->begin()->getSize());        
         
         if (row_id == _number_id) {
-            // Add the _id to the row
-            row.push_back(_id);
-            cout << "Found " << row_id << endl;
-            cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
-            cout << "INT64 " << _id << " | ";
-        
-            //Read and convert the values from the file
-            for (vector<SchemeCol>::iterator it = scheme_cols->begin() + 1; it != scheme_cols->end(); it++) {
-                SchemeCol & scheme_col = *it;
-                ostringstream stream;
-                
-                if (scheme_col.type == INT32) {
-                    int value;
-                    file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                    cout << "INT32 " << value << " | ";
-                    stream << value;
-                } else if (scheme_col.type == CHAR) {
-                    char value[scheme_col.getSize()];
-                    file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                    cout << "CHAR " << value << " | ";
-                    stream << value;
-                } else if (scheme_col.type == FLOAT) {
-                    float value;
-                    file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                    cout << "FLOAT " << value << " | ";
-                    stream << value;
-                } else if (scheme_col.type == DOUBLE) {
-                    double value;
-                    file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                    cout << "DOUBLE " << value << " | ";
-                    stream << value;
-                }  else if (scheme_col.type == INT64) {
-                    long long value;
-                    file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                    cout << "INT64 " << value << " | ";
-                    stream << value;
-                }
-                
-                string string_value;
-                string_value = stream.str();
-                
-                //Add the value to the row
-                row.push_back(string_value);   
-            }
-            cout << endl;
+            row = table->getRow((long long) file.tellg() - table->HEADER_SIZE - sizeof(_number_id));
             // The id was found, exit the loop
+            cout << "Found " << _id << endl;
+            print(&row);
             break;
             
         } else {
@@ -193,12 +151,13 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
 vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
     cout << "Sequential index query" << endl;
     vector<string> row;
+    long long _id_number = std::stoll((_id).c_str());
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
     for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
         // compare the _id
         // cout << it->second << endl;
-        if (std::stoll((_id).c_str()) == it->first) {
+        if (_id_number == it->first) {
             cout << "Found " << _id << endl;
             row = table->getRow(it->second);
             break;
