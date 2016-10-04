@@ -101,7 +101,7 @@ void TableBenchmark::runBenchmark() {
     sequentialFileRangeQuery(120, 125);
     sequentialIndexRangeQuery(120, 125);
     // bPlusTreeRangeQuery(120, 125);
-    // binaryIndexRangeQuery(120, 125);
+    binaryIndexRangeQuery(120, 125);
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
@@ -238,7 +238,7 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
         long long row_id;
         file.read(reinterpret_cast<char *> (&row_id), scheme_cols->begin()->getSize());        
         
-        if (row_id == min) {
+        if (row_id >= min) {
             found = true;
         }
         
@@ -273,7 +273,7 @@ vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int m
     for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
         // compare the _id
         // cout << it->second << endl;
-        if (min == it->first) {
+        if (it->first >= min) {
             found = true;
         }
         
@@ -302,6 +302,29 @@ vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(int min, int max) 
     cout << "Binary index range query" << endl;
     vector<vector<string> > rows;
     
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
+    int idx = distance(table->header->begin(), lower_bound(table->header->begin(),table->header->end(), 
+       make_pair((long long) min, numeric_limits<long long>::min())));
+    bool found = false;
+    
+    // If the found index is equals to the desired index, the _id was found
+    auto pair = table->header->at(idx);
+    if (pair.first == min) {
+        found = true;
+        while (pair.first >= min && pair.first <= max) {
+            rows.push_back(table->getRow(pair.second));
+            if (idx < table->header->size()) {
+                idx++;
+                pair = table->header->at(idx);
+            }
+        }
+    }
+    
+    if (found) {
+        cout << "Found" << endl;
+        print(&rows);
+    }
     return rows;
 }
 #endif //TABLEBENCHMARK_H
