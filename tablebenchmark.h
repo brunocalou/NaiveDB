@@ -54,6 +54,13 @@ public:
       */
      vector<string> binaryIndexQuery(string _id);
      
+     /**
+      * Perform a query where only the _id is compared to the value.
+      * The query is made by searching on the in-memory hash table
+      * @return the table rows with the selected ids
+      */
+     vector<string> hashTableQuery(string _id);
+     
      /*****************************************
       ********** RANGE QUERY METHODS **********
       *****************************************/
@@ -85,6 +92,13 @@ public:
       * @return the table rows with the selected ids
       */
      vector<vector<string> > binaryIndexRangeQuery(int min, int max);
+     
+     /**
+      * Perform a query where min < _id < max
+      * The query is made by searching on the in-memory hash table using binary search
+      * @return the table rows with the selected ids
+      */
+     vector<vector<string> > hashTableRangeQuery(int min, int max);
 };
 
 TableBenchmark::TableBenchmark(Table * table) {
@@ -97,11 +111,13 @@ void TableBenchmark::runBenchmark() {
     sequentialIndexQuery("123");
     bPlusTreeQuery("123");
     binaryIndexQuery("123");
+    hashTableQuery("123");
     
     sequentialFileRangeQuery(120, 125);
     sequentialIndexRangeQuery(120, 125);
     bPlusTreeRangeQuery(120, 125);
     binaryIndexRangeQuery(120, 125);
+    hashTableRangeQuery(120, 125);
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
@@ -372,6 +388,57 @@ vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(int min, int max) 
         cout << "Found" << endl;
         print(&rows);
     }
+    return rows;
+}
+
+vector<string> TableBenchmark::hashTableQuery(string _id) {
+    cout << "Hash table query" << endl;
+    vector<string> row;
+    map<long long, long long> hashtable;
+    long long _id_number = atoi(_id.c_str());
+    
+    
+    //Fill the map
+    hashtable.insert(table->header->begin(), table->header->end());
+    
+    //Search on the map
+    row = table->getRow(hashtable.find(_id_number)->second);
+
+    if (row.size() > 0) {
+        cout << "Found" << endl;
+        print(&row);
+    }
+    
+    return row;
+}
+
+vector<vector<string> > TableBenchmark::hashTableRangeQuery(int min, int max) {
+    cout << "Hash table range query" << endl;
+    vector<vector<string> > rows;
+    int current_id = min;
+    map<long long, long long> hashtable;
+    
+    //Fill the map
+    hashtable.insert(table->header->begin(), table->header->end());
+    
+    //Search on the map
+    for (map<long long, long long>::iterator it = hashtable.begin(); it != hashtable.end(); it++) {
+        if (current_id > max) {
+            break;
+        }
+ 
+        vector<string> row = table->getRow(hashtable.find(current_id)->second);       
+        if (row.size() > 0) {
+            rows.push_back(row);
+        }
+        current_id ++;
+    }
+    
+    if (rows.size() > 0) {
+        cout << "Found" << endl;
+        print(&rows);
+    }
+    
     return rows;
 }
 #endif //TABLEBENCHMARK_H
