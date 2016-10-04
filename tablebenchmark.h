@@ -3,6 +3,7 @@
 
 #include "table.h"
 #include "BPlusTree/bpt.h"
+#include "timer.h"
 
 using bpt::bplus_tree;
 
@@ -107,21 +108,27 @@ TableBenchmark::TableBenchmark(Table * table) {
 
 void TableBenchmark::runBenchmark() {
     //TODO: Get the time for each method and print on the screen
-    sequentialFileQuery("123");
-    sequentialIndexQuery("123");
-    bPlusTreeQuery("123");
-    binaryIndexQuery("123");
-    hashTableQuery("123");
+    string _id = "65000";
+    int min = 64500;
+    int max = 65500;
+    sequentialFileQuery(_id);
+    sequentialIndexQuery(_id);
+    binaryIndexQuery(_id);
+    hashTableQuery(_id);
     
-    sequentialFileRangeQuery(120, 125);
-    sequentialIndexRangeQuery(120, 125);
-    bPlusTreeRangeQuery(120, 125);
-    binaryIndexRangeQuery(120, 125);
-    hashTableRangeQuery(120, 125);
+    sequentialFileRangeQuery(min, max);
+    sequentialIndexRangeQuery(min, max);
+    binaryIndexRangeQuery(min, max);
+    hashTableRangeQuery(min, max);
+    
+    bPlusTreeQuery(_id);
+    bPlusTreeRangeQuery(min, max);
 }
 
 vector<string> TableBenchmark::sequentialFileQuery(string _id) {
     cout << "Sequential file query" << endl;
+    Timer timer;
+    timer.start();
     
     vector<string> row;
     long long _number_id = std::stoll(_id.c_str());
@@ -146,7 +153,8 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
             row = table->getRow((long long) file.tellg() - table->HEADER_SIZE - sizeof(_number_id));
             // The id was found, exit the loop
             cout << "Found " << _id << endl;
-            print(&row);
+            cout << "Time " << timer.getElapsedTime() << " s" << endl;
+            // print(&row);
             break;
             
         } else {
@@ -165,6 +173,9 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
 }
 vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
     cout << "Sequential index query" << endl;
+    Timer timer;
+    timer.start();
+    
     vector<string> row;
     long long _id_number = std::stoll((_id).c_str());
     //Iterate through the Table::header
@@ -174,16 +185,18 @@ vector<string> TableBenchmark::sequentialIndexQuery(string _id) {
         // cout << it->second << endl;
         if (_id_number == it->first) {
             cout << "Found " << _id << endl;
+            cout << "Time " << timer.getElapsedTime() << " s" << endl;
             row = table->getRow(it->second);
             break;
         }
     }
-    print(&row);
+    // print(&row);
     
     return row;
 }
 vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
     cout << "B+ tree query" << endl;
+    
     vector<string> row;
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
@@ -198,19 +211,27 @@ vector<string> TableBenchmark::bPlusTreeQuery(string _id) {
         const char* key = stream.str().c_str();
         tree.insert(key, it->second);
     }
+    cout << "Filled b+ tree" << endl;
+    
+    Timer timer;
+    timer.start();
     
     //Search the b+ tree
     bpt::value_t value;
     tree.search(_id.c_str(), &value);
     if (value != -1) {
         cout << "Found " << _id << endl;
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
         row = table->getRow(value);
-        print(&row);
+        // print(&row);
     }
     return row;
 }
 vector<string> TableBenchmark::binaryIndexQuery(string _id) {
     cout << "Binary index query" << endl;
+    Timer timer;
+    timer.start();
+    
     vector<string> row;
     long long _id_number = stoll(_id.c_str());
     //Iterate through the Table::header
@@ -222,8 +243,9 @@ vector<string> TableBenchmark::binaryIndexQuery(string _id) {
     auto pair = table->header->at(idx);
     if (pair.first == _id_number) {
         cout << "Found " << _id << endl;
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
         row = table->getRow(pair.second);
-        print(&row);
+        // print(&row);
     }
     return row;
 }
@@ -234,6 +256,9 @@ vector<string> TableBenchmark::binaryIndexQuery(string _id) {
 
 vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int max) {
     cout << "Sequential file range query" << endl;
+    Timer timer;
+    timer.start();
+    
     vector<vector<string> > rows;
     
     ifstream file;
@@ -277,13 +302,17 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
     
     if (rows.size() > 0) {
         cout << "Found" << endl;
-        print(&rows);
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
+        // print(&rows);
     }
     return rows;
 }
 
 vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int max) {
     cout << "Sequential index range query" << endl;
+    Timer timer;
+    timer.start();
+    
     vector<vector<string> > rows;
     bool found = false;
     for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
@@ -303,12 +332,14 @@ vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int m
     }
     
     cout << "Found" << endl;
-    print(&rows);
+    cout << "Time " << timer.getElapsedTime() << " s" << endl;
+    // print(&rows);
     return rows;
 }
 
 vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
     cout << "B+ tree range query" << endl;
+    
     vector<vector<string> > rows;
     
     //Create the b+ tree
@@ -321,6 +352,11 @@ vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
         const char* key = stream.str().c_str();
         tree.insert(key, it->second);
     }
+    cout << "Filled b+ tree" << endl;
+    
+    Timer timer;
+    timer.start();
+    
     bpt::key_t key_1;
     bpt::key_t key_2;
     bpt::value_t values[table->header->size()];
@@ -355,7 +391,8 @@ vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
 
     if (rows.size() > 0) {
         cout << "Found" << endl;
-        print(&rows);
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
+        // print(&rows);
     }
     
     return rows;
@@ -363,6 +400,9 @@ vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
 
 vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(int min, int max) {
     cout << "Binary index range query" << endl;
+    Timer timer;
+    timer.start();
+    
     vector<vector<string> > rows;
     
     //Iterate through the Table::header
@@ -386,13 +426,15 @@ vector<vector<string> > TableBenchmark::binaryIndexRangeQuery(int min, int max) 
     
     if (found) {
         cout << "Found" << endl;
-        print(&rows);
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
+        // print(&rows);
     }
     return rows;
 }
 
 vector<string> TableBenchmark::hashTableQuery(string _id) {
     cout << "Hash table query" << endl;
+    
     vector<string> row;
     map<long long, long long> hashtable;
     long long _id_number = atoi(_id.c_str());
@@ -401,12 +443,16 @@ vector<string> TableBenchmark::hashTableQuery(string _id) {
     //Fill the map
     hashtable.insert(table->header->begin(), table->header->end());
     
+    Timer timer;
+    timer.start();
+    
     //Search on the map
     row = table->getRow(hashtable.find(_id_number)->second);
 
     if (row.size() > 0) {
         cout << "Found" << endl;
-        print(&row);
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
+        // print(&row);
     }
     
     return row;
@@ -414,12 +460,16 @@ vector<string> TableBenchmark::hashTableQuery(string _id) {
 
 vector<vector<string> > TableBenchmark::hashTableRangeQuery(int min, int max) {
     cout << "Hash table range query" << endl;
+    
     vector<vector<string> > rows;
     int current_id = min;
     map<long long, long long> hashtable;
     
     //Fill the map
     hashtable.insert(table->header->begin(), table->header->end());
+    
+    Timer timer;
+    timer.start();
     
     //Search on the map
     for (map<long long, long long>::iterator it = hashtable.begin(); it != hashtable.end(); it++) {
@@ -436,7 +486,8 @@ vector<vector<string> > TableBenchmark::hashTableRangeQuery(int min, int max) {
     
     if (rows.size() > 0) {
         cout << "Found" << endl;
-        print(&rows);
+        cout << "Time " << timer.getElapsedTime() << " s" << endl;
+        // print(&rows);
     }
     
     return rows;

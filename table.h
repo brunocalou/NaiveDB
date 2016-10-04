@@ -202,24 +202,24 @@ void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *sch
     if (scheme_col->type == INT32) {
         int value = atoi((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "INT32 " << value << "(" << *string_value << ")" << " | ";
+        // cout << "INT32 " << value << "(" << *string_value << ")" << " | ";
     } else if (scheme_col->type == CHAR) {
         char value[scheme_col->getSize()];
         strncpy(value, &string_value->c_str()[0], scheme_col->getSize());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "CHAR " << value << "(" << *string_value << ")" << " | ";
+        // cout << "CHAR " << value << "(" << *string_value << ")" << " | ";
     } else if (scheme_col->type == FLOAT) {
         float value = atof((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "FLOAT " << value << "(" << *string_value << ")" << " | ";
+        // cout << "FLOAT " << value << "(" << *string_value << ")" << " | ";
     } else if (scheme_col->type == DOUBLE) {
         double value = atof((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
+        // cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
     } else if (scheme_col->type == INT64) {
         long long value = std::stoll((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
+        // cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
     }
 }
 
@@ -246,7 +246,7 @@ int Table::insert(vector<string> row) {
     file.write(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
     file.write(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
     
-    cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
+    // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
     
     //Push the _id to the row
     string _id_str;
@@ -269,7 +269,7 @@ int Table::insert(vector<string> row) {
         convertAndSave(&file, &(*row_it), &scheme_cols->at(scheme_col_position));
         scheme_col_position ++;
     }
-    cout << endl;
+    // cout << endl;
     
     file.close();
     
