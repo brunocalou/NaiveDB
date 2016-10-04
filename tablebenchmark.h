@@ -359,8 +359,9 @@ vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
     
     bpt::key_t key_1;
     bpt::key_t key_2;
-    bpt::value_t values[table->header->size()];
-    int size = table->header->size();
+    // The id is unique, so there can be just (max - min + 1) values
+    int size = max - min + 1;
+    bpt::value_t values[size];
     
     // Fill the values vector with -1
     for (int i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
