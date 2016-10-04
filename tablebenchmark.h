@@ -100,7 +100,7 @@ void TableBenchmark::runBenchmark() {
     
     sequentialFileRangeQuery(120, 125);
     sequentialIndexRangeQuery(120, 125);
-    // bPlusTreeRangeQuery(120, 125);
+    bPlusTreeRangeQuery(120, 125);
     binaryIndexRangeQuery(120, 125);
 }
 
@@ -294,6 +294,53 @@ vector<vector<string> > TableBenchmark::sequentialIndexRangeQuery(int min, int m
 vector<vector<string> > TableBenchmark::bPlusTreeRangeQuery(int min, int max) {
     cout << "B+ tree range query" << endl;
     vector<vector<string> > rows;
+    
+    //Create the b+ tree
+    bplus_tree tree("test.db", true);
+    
+    //Fill the b+ tree
+    for (header_t::iterator it = table->header->begin(); it != table->header->end(); it++) {
+        std::ostringstream stream;
+        stream << it->first;
+        const char* key = stream.str().c_str();
+        tree.insert(key, it->second);
+    }
+    bpt::key_t key_1;
+    bpt::key_t key_2;
+    bpt::value_t values[table->header->size()];
+    int size = table->header->size();
+    
+    // Fill the values vector with -1
+    for (int i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+        values[i] = -1;
+    }
+    
+    //Convert the min to key_1
+    ostringstream stream;
+    stream << min;
+    key_1 = stream.str().c_str();
+    
+    //Clear the stream
+    stream.str("");
+    
+    //Convert the max to key_2
+    stream << max;
+    key_2 = stream.str().c_str();
+    
+    //Search the b+ tree
+    tree.search_range(&key_1, key_2, values, size);
+    
+    for (int i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+        if (values[i] == -1) {
+            break;
+        }
+        rows.push_back(table->getRow(values[i]));
+    }
+
+    if (rows.size() > 0) {
+        cout << "Found" << endl;
+        print(&rows);
+    }
     
     return rows;
 }
