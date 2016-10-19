@@ -107,10 +107,9 @@ TableBenchmark::TableBenchmark(Table * table) {
 }
 
 void TableBenchmark::runBenchmark() {
-    //TODO: Get the time for each method and print on the screen
-    string _id = "65000";
-    int min = 64500;
-    int max = 65500;
+    string _id = "888"; //65000
+    int min = 500; //64500
+    int max = 995; //65500
     sequentialFileQuery(_id);
     sequentialIndexQuery(_id);
     binaryIndexQuery(_id);
