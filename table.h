@@ -4,12 +4,12 @@
 #include "util.h"
 #include "scheme.h"
 #include "cursor.h"
-#include "tablebenchmark.h"
 #include <fstream>
 #include <time.h>
 #include <string.h>
 #include <algorithm>
 #include <utility> //std::pair
+#include <stdio.h>
 
 /**
  * Stores the header of a registry. The header is saved for each registry
@@ -103,13 +103,24 @@ public:
      *              to be the same as the order on the scheme
      * @return the _id of the inserted item (used as primary key)
      */
-    int insert(vector<string> row);
+    long long insert(vector<string> row);
     
     /**
      * Get a line from the file, given the registry position.
      * @return a vector containing the _id and the row content
      */
     vector<string> getRow(long long registry_position);
+    
+    /**
+     * Get a row from the file, given the specified _id. This
+     * method uses the binary search algorithm
+     */
+    vector<string> getRowById(long long _id);
+    
+    /**
+     * Deletes the table and all its associated files
+     */
+    void drop();
      
     /**
      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
@@ -168,7 +179,7 @@ Table::Table(string name) {
     
     RegistryHeader reg_header;
     Table::HEADER_SIZE = sizeof(reg_header.table_name) + sizeof(reg_header.registry_size) + sizeof(reg_header.time_stamp);
-    cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
+    // cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
     
 }
 
@@ -188,11 +199,14 @@ void Table::loadHeader() {
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
     
-    while (file.good()) {
+    while (!file.eof()) {
         HeaderFile header;
-        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
-        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
+        if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
+            !file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position))) {
+                break;
+        } else {
+            this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
+        }
     }
     
     file.close();
@@ -216,14 +230,14 @@ void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *sch
         double value = atof((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
         // cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
-    } else if (scheme_col->type == INT64) {
+    } else if (scheme_col->type == INT64 || scheme_col->type == FOREIGN_KEY) {
         long long value = std::stoll((*string_value).c_str());
         file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
         // cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
     }
 }
 
-int Table::insert(vector<string> row) {
+long long Table::insert(vector<string> row) {
     //TODO: create a insert method that receives the file as parameter to improve the performance while adding many rows
     //TODO: Handle exceptions and return 0 on failure
     ofstream file;
@@ -273,7 +287,7 @@ int Table::insert(vector<string> row) {
     
     file.close();
     
-    return 1;
+    return header_file._id;
 }
 
 bool Table::insertOnHeaderFile(HeaderFile * header_file) {
@@ -291,15 +305,19 @@ bool Table::insertOnHeaderFile(HeaderFile * header_file) {
 }
 
 void Table::printHeaderFile(int number_of_values) {
+    cout << "Printing " << name << " header file" << endl;
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
     int counter = 0;
     
-    while (file.good() && counter != number_of_values) {
+    while (!file.eof() && counter != number_of_values) {
         HeaderFile header;
-        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
-        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        cout << header._id << " " << header.registry_position << endl;
+        if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
+            !file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position))) {
+                break;
+        } else {
+            cout << header._id << " " << header.registry_position << endl;
+        }
         counter ++;
     }
     
@@ -307,7 +325,7 @@ void Table::printHeaderFile(int number_of_values) {
 }
 
 void Table::print(int number_of_values) {
-    cout << "Print" << endl;
+    cout << "Printing " << name << " table" << endl;
     int counter = 0;
     while (counter != number_of_values) {
         
@@ -322,6 +340,7 @@ void Table::print(int number_of_values) {
         }
         
         counter ++;
+        cout << endl;
     }
     cout << endl;
 }
@@ -545,7 +564,7 @@ vector<string> Table::getRow(long long registry_position) {
             file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
             // cout << "DOUBLE " << value << " | ";
             stream << value;
-        }  else if (scheme_col.type == INT64) {
+        }  else if (scheme_col.type == INT64 || scheme_col.type == FOREIGN_KEY) {
             long long value;
             file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
             // cout << "INT64 " << value << " | ";
@@ -563,4 +582,27 @@ vector<string> Table::getRow(long long registry_position) {
     
     return row;
 }
+
+vector<string> Table::getRowById(long long _id) {
+    vector<string> row;
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
+    int idx = distance(header->begin(), lower_bound(header->begin(), header->end(), 
+       make_pair(_id, numeric_limits<long long>::min())));
+    
+    // If the found index is equals to the desired index, the _id was found
+    auto pair = header->at(idx);
+    if (pair.first == _id) {
+        row = getRow(pair.second);
+        // print(&row);
+    }
+    return row;
+}
+
+void Table::drop() {
+    remove(this->path.c_str());
+    remove(this->header_file_path.c_str());
+    this->header->clear();
+}
+
 #endif //TABLE_H

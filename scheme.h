@@ -14,7 +14,8 @@ enum SchemeType {
     INT64,
     CHAR,
     FLOAT,
-    DOUBLE//,
+    DOUBLE,
+    FOREIGN_KEY
     // BOOLEAN
 };
 
@@ -29,6 +30,7 @@ struct SchemeCol {
             case FLOAT:
                 return sizeof(float) * (array_size + 1);
             case INT64:
+            case FOREIGN_KEY:
             case DOUBLE:
                 return sizeof(double) * (array_size + 1);
             // case BOOLEAN:
@@ -46,6 +48,15 @@ struct SchemeCol {
  * it's used as the primary key
  * e.g.:
  * | _id:int64 (primary key) | name:char:255 | lastname:char:255 | age:int32 |
+ * 
+ * When using a foreign key, the first attribute is the name of the table
+ * e.g.:
+ * | _id:int64 (primary key) | telephone_number:int64 | person:foreign_key |
+ *
+ * The 'person' is a table and the foreign_key states that ONLY ONE _id on 
+ * the person table will be stored (one-to-one relation)
+ *
+ * OBS: One-to-many relation is NOT SUPPORTED yet
  */
 class Scheme {
 private:
@@ -71,6 +82,17 @@ public:
      * @return the columns vector
      */
      vector<SchemeCol> * getCols();
+     
+     /**
+      * Add a column
+      */
+     void addCol(string key, SchemeType type);
+     void addCol(string key, SchemeType type, unsigned array_size);
+      
+     /**
+      * @return the number of columns on the scheme
+      */
+     int getNumberOfCols();
      
      /**
       * e.g.: If there are two columns, a char [255] and a float, the
@@ -117,6 +139,8 @@ void Scheme::import(const string & path) {
                     col.type = FLOAT;
                 } else if (type == "double") {
                     col.type = DOUBLE;
+                } else if (type == "foreign_key") {
+                    col.type = FOREIGN_KEY;
                 }
                 // else if (type == "boolean") {
                 //     col.type = BOOLEAN;
@@ -145,6 +169,18 @@ vector<SchemeCol> * Scheme::getCols() {
     return &cols;
 }
 
+void Scheme::addCol(string key, SchemeType type) {
+    addCol(key, type, 0);
+}
+
+void Scheme::addCol(string key, SchemeType type, unsigned array_size) {
+    SchemeCol col;
+    col.key = key;
+    col.type = type;
+    col.array_size = array_size;
+    cols.push_back(col);
+}
+
 unsigned Scheme::getSize() {
     if (size == -1) {
         // Get the size for the first time
@@ -155,6 +191,10 @@ unsigned Scheme::getSize() {
     }
     
     return size;
+}
+
+int Scheme::getNumberOfCols() {
+    return cols.size();
 }
  
  #endif //SCHEME_H
