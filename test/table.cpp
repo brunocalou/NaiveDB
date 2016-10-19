@@ -3,21 +3,21 @@
 
 TEST_CASE("A table should have a one-to-one relation") {
     GIVEN("Two related tables") {
-        Scheme person_scheme;
-        person_scheme.addCol("name", CHAR, 255);
+        Schema person_schema;
+        person_schema.addCol("name", CHAR, 255);
         
         Table person_table("person");
-        person_table.setScheme(person_scheme);
+        person_table.setSchema(person_schema);
         
-        Scheme contact_scheme;
-        contact_scheme.addCol("number", INT64);
-        contact_scheme.addCol("person", FOREIGN_KEY);
+        Schema contact_schema;
+        contact_schema.addCol("number", INT64);
+        contact_schema.addCol("person", FOREIGN_KEY);
         
         Table contact_table("contact");
-        contact_table.setScheme(contact_scheme);
+        contact_table.setSchema(contact_schema);
         
-        REQUIRE(person_scheme.getNumberOfCols() == 2);
-        REQUIRE(contact_scheme.getNumberOfCols() == 3);
+        REQUIRE(person_schema.getNumberOfCols() == 2);
+        REQUIRE(contact_schema.getNumberOfCols() == 3);
         
         WHEN("A row on the first table relates to a row on the second one") {
             vector<string> person_row;

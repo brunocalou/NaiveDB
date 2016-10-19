@@ -135,7 +135,7 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
     ifstream file;
     file.open(table->path.c_str(), ios::binary);
     
-    vector<SchemeCol>* scheme_cols = table->scheme.getCols();
+    vector<SchemaCol>* schema_cols = table->schema.getCols();
     
     while (file.good()) {
         //Import the header
@@ -146,7 +146,7 @@ vector<string> TableBenchmark::sequentialFileQuery(string _id) {
         
         //Read the id
         long long row_id;
-        file.read(reinterpret_cast<char *> (&row_id), scheme_cols->begin()->getSize());        
+        file.read(reinterpret_cast<char *> (&row_id), schema_cols->begin()->getSize());        
         
         if (row_id == _number_id) {
             row = table->getRow((long long) file.tellg() - table->HEADER_SIZE - sizeof(_number_id));
@@ -263,7 +263,7 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
     ifstream file;
     file.open(table->path.c_str(), ios::binary);
     
-    vector<SchemeCol>* scheme_cols = table->scheme.getCols();
+    vector<SchemaCol>* schema_cols = table->schema.getCols();
     
     bool found = false;
     
@@ -276,7 +276,7 @@ vector<vector<string> > TableBenchmark::sequentialFileRangeQuery(int min, int ma
         
         //Read the id
         long long row_id;
-        file.read(reinterpret_cast<char *> (&row_id), scheme_cols->begin()->getSize());        
+        file.read(reinterpret_cast<char *> (&row_id), schema_cols->begin()->getSize());        
         
         if (row_id >= min) {
             found = true;

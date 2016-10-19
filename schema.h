@@ -1,5 +1,5 @@
-#ifndef SCHEME_H
-#define SCHEME_H
+#ifndef Schema_H
+#define Schema_H
 
 #include <iostream>
 #include <fstream>
@@ -9,7 +9,7 @@
 
 using namespace std;
 
-enum SchemeType {
+enum SchemaType {
     INT32,
     INT64,
     CHAR,
@@ -19,9 +19,9 @@ enum SchemeType {
     // BOOLEAN
 };
 
-struct SchemeCol {
+struct SchemaCol {
     string key;
-    SchemeType type;
+    SchemaType type;
     unsigned array_size;
     
     unsigned getSize() {
@@ -53,24 +53,35 @@ struct SchemeCol {
  * e.g.:
  * | _id:int64 (primary key) | telephone_number:int64 | person:foreign_key |
  *
- * The 'person' is a table and the foreign_key states that ONLY ONE _id on 
- * the person table will be stored (one-to-one relation)
+ * The 'person' is a table and the foreign_key states that ONLY ONE _id will be stored on 
+ * the person table (one-to-one relation)
  *
- * OBS: One-to-many relation is NOT SUPPORTED yet
+ * Note that in order to make a one-to-many or many-to-many relashionsip,
+ * a junction table should be used. @See https://en.wikipedia.org/wiki/Associative_entity 
+ * 
+ * e.g.:
+ * actor table
+ * | _id:int64 (primary key) | name:char:255 |
+ * 
+ * film table
+ * | _id:int64 (primary key) | title:char:255 | genre:char:255 |
+ *
+ * actor_film_mapping table
+ * | _id:int64 (primary key) | actor_id:foreign_key | film_id:foreign_key |
  */
-class Scheme {
+class Schema {
 private:
-    vector<SchemeCol> cols;
+    vector<SchemaCol> cols;
     unsigned size;
     
 public:
     /**
      *@constructor
      */
-    Scheme();
+    Schema();
     
     /**
-    * Import a scheme file, where each line is defined by <key>:<type>:<optional_array_size>
+    * Import a schema file, where each line is defined by <key>:<type>:<optional_array_size>
     * e.g.:
     * name:char:255 is a char *[255]
     * name:int32 is an int
@@ -78,33 +89,33 @@ public:
     void import(const string & path);
     
     /**
-     * Get the scheme columns
+     * Get the schema columns
      * @return the columns vector
      */
-     vector<SchemeCol> * getCols();
+     vector<SchemaCol> * getCols();
      
      /**
       * Add a column
       */
-     void addCol(string key, SchemeType type);
-     void addCol(string key, SchemeType type, unsigned array_size);
+     void addCol(string key, SchemaType type);
+     void addCol(string key, SchemaType type, unsigned array_size);
       
      /**
-      * @return the number of columns on the scheme
+      * @return the number of columns on the schema
       */
      int getNumberOfCols();
      
      /**
       * e.g.: If there are two columns, a char [255] and a float, the
       * method will return sizeof(char) * 255 + sizeof(float)
-      * @return the total size of the scheme
+      * @return the total size of the schema
       */
       unsigned getSize(); 
 };
 
-Scheme::Scheme() {
+Schema::Schema() {
     size = -1;
-    SchemeCol _id;
+    SchemaCol _id;
     _id.key = "_id";
     _id.type = INT64;
     _id.array_size = 0;
@@ -112,7 +123,7 @@ Scheme::Scheme() {
     cols.push_back(_id);
 }
 
-void Scheme::import(const string & path) {
+void Schema::import(const string & path) {
     ifstream file;
     file.open(path.c_str());
     string line;
@@ -121,7 +132,7 @@ void Scheme::import(const string & path) {
         //Lines
         while (getline(file, line)) {
             vector<string> words = split(line, ':');
-            SchemeCol col;
+            SchemaCol col;
             unsigned size = words.size();
             
             if (size > 0) {
@@ -165,27 +176,27 @@ void Scheme::import(const string & path) {
     
 }
 
-vector<SchemeCol> * Scheme::getCols() {
+vector<SchemaCol> * Schema::getCols() {
     return &cols;
 }
 
-void Scheme::addCol(string key, SchemeType type) {
+void Schema::addCol(string key, SchemaType type) {
     addCol(key, type, 0);
 }
 
-void Scheme::addCol(string key, SchemeType type, unsigned array_size) {
-    SchemeCol col;
+void Schema::addCol(string key, SchemaType type, unsigned array_size) {
+    SchemaCol col;
     col.key = key;
     col.type = type;
     col.array_size = array_size;
     cols.push_back(col);
 }
 
-unsigned Scheme::getSize() {
+unsigned Schema::getSize() {
     if (size == -1) {
         // Get the size for the first time
         size = 0;
-        for (vector<SchemeCol>::iterator it = cols.begin(); it != cols.end(); it++) {
+        for (vector<SchemaCol>::iterator it = cols.begin(); it != cols.end(); it++) {
             size += (*it).getSize();
         }
     }
@@ -193,8 +204,8 @@ unsigned Scheme::getSize() {
     return size;
 }
 
-int Scheme::getNumberOfCols() {
+int Schema::getNumberOfCols() {
     return cols.size();
 }
  
- #endif //SCHEME_H
+ #endif //Schema_H
