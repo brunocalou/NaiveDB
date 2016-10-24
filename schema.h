@@ -93,6 +93,18 @@ public:
      * @return the columns vector
      */
      vector<SchemaCol> * getCols();
+
+     /**
+     * Get the specified schema
+     * @return the specific column
+     */
+     SchemaCol * getCol(string key);
+     
+     /**
+     * Get the order of the specified collumn
+     * @return the specific column order, starting with 0
+     */
+     int getColPosition(string key);
      
      /**
       * Add a column
@@ -178,6 +190,20 @@ void Schema::import(const string & path) {
 
 vector<SchemaCol> * Schema::getCols() {
     return &cols;
+}
+
+SchemaCol * Schema::getCol(string key){
+    return &cols.at(getColPosition(key));
+}
+
+int Schema::getColPosition(string key){
+    for(int i=0; i<cols.size(); i++){
+        if(cols.at(i).key == key){
+            return i;
+        }
+    }
+
+    throw std::invalid_argument( "There is no collumn with the name \""+key+"\" in this Schema");
 }
 
 void Schema::addCol(string key, SchemaType type) {

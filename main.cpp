@@ -2,6 +2,7 @@
 // #include "table.h"
 #include "tablebenchmark.h"
 #include "joinbenchmark.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -37,8 +38,28 @@ int main() {
     JoinBenchmark joinbenchmark(&company_table, &person_table, &worked_table);
     joinbenchmark.runBenchmark();
     
+    vector<vector<long long>>* joinResult = person_table.naiveJoin("_id", worked_table, "person_id");
+    
+    //Prints the joinned rows, using the joinResult structure
+    for(int i=0; i<=20; i++){
+    	for(int personCollumn=0; personCollumn <person_table.getSchema().getCols()->size(); personCollumn++){
+    		cout<<person_table.getRow(joinResult->at(i).at(0)).at(personCollumn)<< " | ";
+    	}
+    	for(int workedCollumn=0; workedCollumn <worked_table.getSchema().getCols()->size(); workedCollumn++){
+    		cout<<worked_table.getRow(joinResult->at(i).at(1)).at(workedCollumn)<< " | ";
+    	}
+    	cout <<endl;
+    }
+
     person_table.drop();
     company_table.drop();
     worked_table.drop();
+	    
+    
+
+        // for (vector<string>::iterator it = thisRow.begin(); it != thisRow.end(); it++) {
+        //     cout << (*it) << " | ";
+        // }
+        // cout << endl;
     return 0;
 }

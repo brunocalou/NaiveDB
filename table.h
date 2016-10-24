@@ -89,6 +89,8 @@ public:
      * @see Schema
      */
     void setSchema(Schema schema);
+
+    Schema getSchema();
     
     /*****************************************
      ************* QUERY METHODS *************
@@ -117,6 +119,20 @@ public:
      */
     vector<string> getRowById(long long _id);
     
+    /**
+     *Perform a simple inner join using the tables choosed collumns
+     *the result is a vector of vector of registry positions
+     * eg: Consider the tables "Person" and "Worked" as below:
+     * Person id | name             Worked  id_company | id_person
+     *         9 | Jhoe  (position 111)          77    |     9        (position 555)
+     *        10 | Marta (position 222)          35    |    10        (position 666)       
+     *                                           44    |    10        (position 777)
+     *
+     * In this case, the result would be a vector below:
+     * [ [111,555], [222,666],[222,777]] 
+     *@return a vector cointaining a vector of the registry positions
+     */
+    vector<vector<long long>>* naiveJoin(string thisCollumn, Table otherTable, string otherCollumn);
     /**
      * Deletes the table and all its associated files
      */
@@ -193,6 +209,10 @@ void Table::importSchema(const string & path) {
 
 void Table::setSchema(Schema schema) {
     this->schema = schema;
+}
+
+Schema Table::getSchema(){
+    return this->schema;
 }
 
 void Table::loadHeader() {
@@ -329,7 +349,7 @@ void Table::print(int number_of_values) {
     cout << "Printing " << name << " table" << endl;
     int counter = 0;
     while (counter != number_of_values) {
-        
+        cout << "headerSize= "<< header->size()<< endl;
         if (counter == header->size()) {
             break;
         }
@@ -604,6 +624,42 @@ void Table::drop() {
     remove(this->path.c_str());
     remove(this->header_file_path.c_str());
     this->header->clear();
+}
+
+vector<vector<long long>>* Table::naiveJoin(string thisCollumnName, Table otherTable, string otherCollumnName) {
+    //get the order of the choosen collumns
+    int thisCollumnPosition = schema.getColPosition(thisCollumnName);
+    int otherCollumnPosition = otherTable.schema.getColPosition(otherCollumnName);
+
+    //vector to be returned
+    vector<vector<long long>>* joinResult = new vector<vector<long long>>;
+    
+
+    int counter = 0;
+
+    while (counter != header->size()) { // Iterate over all of this table
+        
+        vector<string> thisRow = getRow(header->at(counter).second);
+
+        // for eache Row in this table, search for all matches in the other table
+        for(int i=0; i<otherTable.header->size(); i++){
+            vector<string> otherRow = otherTable.getRow(otherTable.header->at(i).second);
+        
+            if(thisRow.at(thisCollumnPosition) == otherRow.at(otherCollumnPosition)){
+                //When matched, insert the registries position into the vector to be returned
+                vector<long long> joinRow;
+
+                //get both registries positions
+                joinRow.push_back(header->at(counter).second);
+                joinRow.push_back(otherTable.header->at(i).second);
+                joinResult->push_back(joinRow);
+                //For debugging purpouse, cout << "insterted "<< header->at(counter).second<< " and " << otherTable.header->at(i).second << endl;
+            }
+        }
+        counter ++;
+        
+    }
+    return joinResult;
 }
 
 #endif //TABLE_H
