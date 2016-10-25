@@ -168,6 +168,14 @@ public:
      *        all the file wil be printed
      */
     void printHeaderFile(int number_of_values = -1);
+    
+    /**
+     * Returns a merge between this table and a table passed as argument.
+     * (At the present moment, the only possible parameter for this join is the id)
+     * @param otherTable an object that represents the other table
+     *        that should be used on the join
+     */
+     vector<vector<long long> > *mergeJoin(Table otherTable);
 };
 
 Table::Table(string name) {
@@ -605,5 +613,44 @@ void Table::drop() {
     remove(this->header_file_path.c_str());
     this->header->clear();
 }
+
+vector<vector<long long>> *Table::mergeJoin(Table other_table){
+    header_t *table_a = header;
+    header_t *table_b = other_table.header;
+    unsigned int n = header->size();
+    unsigned int m = other_table.header->size();
+
+    unsigned int i = 0;
+    unsigned int j = 0;
+    int l, k;
+
+    vector<vector<long long>> *return_val = new vector<vector<long long> >;
+
+    while(i < n and j < m){ 
+        cout << table_a->at(i).first << " " << table_b->at(j).first << endl; 
+        if(table_a->at(i).first > table_b->at(j).first){
+            j++;
+        }else if(table_a->at(i).first < table_b->at(j).first){
+            i++;
+        }else{
+            l = i;
+
+            while(l < n and table_a->at(l).first == table_a->at(i).first){
+                k = j;
+                while(k < m and table_b->at(k).first == table_b->at(j).first){
+                    return_val->push_back({table_a->at(l).second, table_b->at(k).second});
+                    k++;
+                }   
+                l++;
+            }   
+
+            i = l;
+            j = k;
+        }   
+    }   
+
+    return return_val;
+}
+
 
 #endif //TABLE_H
