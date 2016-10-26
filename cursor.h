@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "scheme.h"
+#include "schema.h"
 
 using namespace std;
 
@@ -12,10 +12,10 @@ class Cursor {
 private:
     vector<vector <string> >::iterator it;
     vector<vector <string> > data;
-    Scheme scheme;
+    Schema schema;
     
 public:
-    Cursor(Scheme scheme, vector<vector <string> > data){};
+    Cursor(Schema schema, vector<vector <string> > data){};
     void moveToFirst(){};
     void moveToNext(){};
     string getString(string column_name){};

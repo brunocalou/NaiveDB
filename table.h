@@ -2,47 +2,27 @@
 #define TABLE_H
 
 #include "util.h"
-#include "scheme.h"
+#include "schema.h"
 #include "cursor.h"
-#include "tablebenchmark.h"
+#include "queryable.h"
+#include "join.h"
 #include <fstream>
 #include <time.h>
 #include <string.h>
 #include <algorithm>
 #include <utility> //std::pair
+#include <stdio.h>
 
-/**
- * Stores the header of a registry. The header is saved for each registry
- * e.g: | HEADER | ROW_1_COL_1 | ROW_1_COL_2 | HEADER | ROW_2_COL1 | ROW_2_COL_2 | 
- */
-struct RegistryHeader {
-    char table_name[255];
-    unsigned registry_size; // size of the registry, header included
-    time_t time_stamp;
-};
 
-/**
- * Stores the position of every RegistryHeader of a table
- * e.g: for a database like | HEADER | 64_BITS_BODY | HEADER | 32_BITS_BODY | HEADER | ...
- *      the Header file will be like | ID_0 | 0 | ID_1 | 64 + HEADER_SIZE | ID_2 | 64 + 32 + 2 * HEADER_SIZE | ...
- * Note that the header file contains registry_positions with FIXED size, so each position is
- * stored by the same amount of bits (in this case, long long (64 bits))
- */
-struct HeaderFile {
-    long long _id;
-    long long registry_position;
-    string path;
-};
-
-class Table {
+class Table : public Queryable{
 private:
     unsigned HEADER_SIZE;
 
-    Scheme scheme;
+    Schema schema;
     string name;
     string path;
     string header_file_path;
-    vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > * header; // _id, registry_position
+    header_t * header; // _id, registry_position
     
     friend class TableBenchmark;
     
@@ -50,7 +30,7 @@ private:
      * Save a value to the file using the correct type and size. The file
      * will not be opened nor closed inside this method
      */
-    void convertAndSave(ofstream *file, string * value, SchemeCol * scheme_col);
+    void convertAndSave(ofstream *file, string * value, SchemaCol * schema_col);
      
     /**
      * Inserts the registry_position on the header file. The insertion will
@@ -79,15 +59,18 @@ public:
     ~Table();
     
     /**
-     * Import the scheme using the Scheme standard method
+     * Import the schema using the Schema standard method
      */
-    void importScheme(const string & path);
+    void importSchema(const string & path);
     
     /**
-     * Set the scheme to be used
-     * @see Scheme
+     * Set the schema to be used
+     * @see Schema
      */
-    void setScheme(Scheme scheme);
+    void setSchema(Schema schema);
+
+    Schema getSchema();
+    header_t * getHeader();
     
     /*****************************************
      ************* QUERY METHODS *************
@@ -99,10 +82,29 @@ public:
      * internally (auto increment)
      * @param row - the table row (primary key not included). Note that
      *              the order of elements is important and it's expected
-     *              to be the same as the order on the scheme
+     *              to be the same as the order on the schema
      * @return the _id of the inserted item (used as primary key)
      */
-    int insert(vector<string> row);
+    long long insert(vector<string> row);
+    
+    /**
+     * Get a line from the file, given the registry position.
+     * @return a vector containing the _id and the row content
+     */
+    vector<string> getRow(long long registry_position);
+    
+    /**
+     * Get a row from the file, given the specified _id. This
+     * method uses the binary search algorithm
+     */
+    vector<string> getRowById(long long _id);
+    
+    
+    Join join(string thisCollumn, Table* otherTable, string otherCollumn, JoinType join_type);
+    /**
+     * Deletes the table and all its associated files
+     */
+    void drop();
      
     /**
      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
@@ -152,16 +154,16 @@ public:
     void printHeaderFile(int number_of_values = -1);
 };
 
-Table::Table(string name) {
+Table::Table(string name)  {
     this->name = name;
     this->path = name + ".dat";
     this->header_file_path = name + "_h.dat";
-    this->header = new vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> >();
+    this->header = new header_t();
     loadHeader();
     
     RegistryHeader reg_header;
     Table::HEADER_SIZE = sizeof(reg_header.table_name) + sizeof(reg_header.registry_size) + sizeof(reg_header.time_stamp);
-    cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
+    // cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
     
 }
 
@@ -169,54 +171,66 @@ Table::~Table() {
     delete this->header;
 }
 
-void Table::importScheme(const string & path) {
-    scheme.import(path);
+void Table::importSchema(const string & path) {
+    schema.import(path);
 }
 
-void Table::setScheme(Scheme scheme) {
-    this->scheme = scheme;
+void Table::setSchema(Schema schema) {
+    this->schema = schema;
+}
+
+Schema Table::getSchema(){
+    return this->schema;
+}
+
+
+header_t * Table::getHeader(){
+    return this->header;
 }
 
 void Table::loadHeader() {
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
     
-    while (file.good()) {
+    while (!file.eof()) {
         HeaderFile header;
-        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
-        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
+        if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
+            !file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position))) {
+                break;
+        } else {
+            this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
+        }
     }
     
     file.close();
 }
 
-void Table::convertAndSave(ofstream *file, string * string_value, SchemeCol *scheme_col) {
-    if (scheme_col->type == INT32) {
+void Table::convertAndSave(ofstream *file, string * string_value, SchemaCol *schema_col) {
+    if (schema_col->type == INT32) {
         int value = atoi((*string_value).c_str());
-        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "INT32 " << value << "(" << *string_value << ")" << " | ";
-    } else if (scheme_col->type == CHAR) {
-        char value[scheme_col->getSize()];
-        strncpy(value, &string_value->c_str()[0], scheme_col->getSize());
-        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "CHAR " << value << "(" << *string_value << ")" << " | ";
-    } else if (scheme_col->type == FLOAT) {
+        file->write(reinterpret_cast<char *> (&value), schema_col->getSize());
+        // cout << "INT32 " << value << "(" << *string_value << ")" << " | ";
+    } else if (schema_col->type == CHAR) {
+        char value[schema_col->getSize()];
+        strncpy(value, &string_value->c_str()[0], schema_col->getSize());
+        file->write(reinterpret_cast<char *> (&value), schema_col->getSize());
+        // cout << "CHAR " << value << "(" << *string_value << ")" << " | ";
+    } else if (schema_col->type == FLOAT) {
         float value = atof((*string_value).c_str());
-        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "FLOAT " << value << "(" << *string_value << ")" << " | ";
-    } else if (scheme_col->type == DOUBLE) {
+        file->write(reinterpret_cast<char *> (&value), schema_col->getSize());
+        // cout << "FLOAT " << value << "(" << *string_value << ")" << " | ";
+    } else if (schema_col->type == DOUBLE) {
         double value = atof((*string_value).c_str());
-        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
-    } else if (scheme_col->type == INT64) {
+        file->write(reinterpret_cast<char *> (&value), schema_col->getSize());
+        // cout << "DOUBLE " << value << "(" << *string_value << ")" << " | ";
+    } else if (schema_col->type == INT64 || schema_col->type == FOREIGN_KEY) {
         long long value = std::stoll((*string_value).c_str());
-        file->write(reinterpret_cast<char *> (&value), scheme_col->getSize());
-        cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
+        file->write(reinterpret_cast<char *> (&value), schema_col->getSize());
+        // cout << "INT64 " << value << "(" << *string_value << ")" << " | ";
     }
 }
 
-int Table::insert(vector<string> row) {
+long long Table::insert(vector<string> row) {
     //TODO: create a insert method that receives the file as parameter to improve the performance while adding many rows
     //TODO: Handle exceptions and return 0 on failure
     ofstream file;
@@ -232,14 +246,14 @@ int Table::insert(vector<string> row) {
     //Save the header
     RegistryHeader header;
     strncpy(header.table_name, &name.c_str()[0], sizeof(header.table_name));
-    header.registry_size = HEADER_SIZE + scheme.getSize();
+    header.registry_size = HEADER_SIZE + schema.getSize();
     time (& header.time_stamp);
     
     file.write(header.table_name, sizeof(header.table_name));
     file.write(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
     file.write(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
     
-    cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
+    // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
     
     //Push the _id to the row
     string _id_str;
@@ -248,25 +262,25 @@ int Table::insert(vector<string> row) {
     strstream << header_file._id;
     strstream >> _id_str;
     
-    //Insert the _id on the first position so it matches the SchemeCol
+    //Insert the _id on the first position so it matches the SchemaCol
     row.insert(row.begin(), _id_str);
     
-    //Export the table according to the scheme
-    vector<SchemeCol>* scheme_cols = scheme.getCols();
+    //Export the table according to the schema
+    vector<SchemaCol>* schema_cols = schema.getCols();
     
-    int scheme_col_position = 0;
+    int schema_col_position = 0;
     
     for (vector<string>::iterator row_it = row.begin(); row_it != row.end(); row_it++) {
         //Iterate through the row and save the values
         //TODO: Consider the array size
-        convertAndSave(&file, &(*row_it), &scheme_cols->at(scheme_col_position));
-        scheme_col_position ++;
+        convertAndSave(&file, &(*row_it), &schema_cols->at(schema_col_position));
+        schema_col_position ++;
     }
-    cout << endl;
+    // cout << endl;
     
     file.close();
     
-    return 1;
+    return header_file._id;
 }
 
 bool Table::insertOnHeaderFile(HeaderFile * header_file) {
@@ -284,79 +298,45 @@ bool Table::insertOnHeaderFile(HeaderFile * header_file) {
 }
 
 void Table::printHeaderFile(int number_of_values) {
+    cout << "Printing " << name << " header file" << endl;
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
     int counter = 0;
     
-    while (file.good() && counter != number_of_values) {
+    while (!file.eof() && counter != number_of_values) {
         HeaderFile header;
-        file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id));
-        file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position));
-        cout << header._id << " " << header.registry_position << endl;
+        if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
+            !file.read(reinterpret_cast<char *> (&header.registry_position), sizeof(header.registry_position))) {
+                break;
+        } else {
+            cout << header._id << " " << header.registry_position << endl;
+        }
         counter ++;
     }
+    cout << endl;
     
     file.close();
 }
 
 void Table::print(int number_of_values) {
-    ifstream file;
-    file.open(path.c_str(), ios::binary);
-    
-    cout << "Print" << endl;
-    
-    vector<SchemeCol>* scheme_cols = scheme.getCols();
+    cout << "Printing " << name << " table" << endl;
     int counter = 0;
-    
-    while (file.good() && counter != number_of_values) {
-        //Import the header
-        RegistryHeader header;
-        file.read(header.table_name, sizeof(header.table_name));
-        file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
-        file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
-        
-        cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
-    
-        //Read and convert the values from the file
-        for (vector<SchemeCol>::iterator it = scheme_cols->begin(); it != scheme_cols->end(); it++) {
-            SchemeCol & scheme_col = *it;
-            // ostringstream stream;
-            
-            if (scheme_col.type == INT32) {
-                int value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "INT32 " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == CHAR) {
-                char value[scheme_col.getSize()];
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "CHAR " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == FLOAT) {
-                float value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "FLOAT " << value << " | ";
-                // stream << value;
-            } else if (scheme_col.type == DOUBLE) {
-                double value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "DOUBLE " << value << " | ";
-                // stream << value;
-            }  else if (scheme_col.type == INT64) {
-                long long value;
-                file.read(reinterpret_cast<char *> (&value), scheme_col.getSize());
-                cout << "INT64 " << value << " | ";
-                // stream << value;
-            }
-            
-            // string string_value;
-            // string_value = stream.str();
+    while (counter != number_of_values) {
+        // cout << "headerSize= "<< header->size()<< endl;
+        if (counter == header->size()) {
+            break;
         }
-        cout << endl;
+        vector<string> row = getRow(header->at(counter).second);
+        
+        //print the line
+        for (vector<string>::iterator it = row.begin(); it != row.end(); it++) {
+            cout << (*it) << " | ";
+        }
+        
         counter ++;
+        cout << endl;
     }
-    
-    file.close();
+    cout << endl;
 }
 
 Cursor Table::query(string q) {
@@ -508,7 +488,7 @@ Cursor Table::query(vector<string> & select, vector<string> & where_args, vector
     
     //TODO: Make the query method
     
-    Cursor cursor(scheme, result);
+    Cursor cursor(schema, result);
     return cursor;
 }
 
@@ -534,4 +514,93 @@ void Table::convertFromCSV(const string & path) {
         cout << "Unable to open file - " << path << endl;
     }
 }
+
+vector<string> Table::getRow(long long registry_position) {
+    ifstream file;
+    file.open(path.c_str(), ios::binary);
+    
+    // Set the file position
+    file.seekg(registry_position);
+    
+    vector<SchemaCol>* schema_cols = schema.getCols();
+    vector<string> row;
+    
+    //Import the header
+    RegistryHeader header;
+    file.read(header.table_name, sizeof(header.table_name));
+    file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
+    file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
+    
+    // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
+
+    //Read and convert the values from the file
+    for (vector<SchemaCol>::iterator it = schema_cols->begin(); it != schema_cols->end(); it++) {
+        SchemaCol & schema_col = *it;
+        ostringstream stream;
+        
+        if (schema_col.type == INT32) {
+            int value;
+            file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
+            // cout << "INT32 " << value << " | ";
+            stream << value;
+        } else if (schema_col.type == CHAR) {
+            char value[schema_col.getSize()];
+            file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
+            // cout << "CHAR " << value << " | ";
+            stream << value;
+        } else if (schema_col.type == FLOAT) {
+            float value;
+            file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
+            // cout << "FLOAT " << value << " | ";
+            stream << value;
+        } else if (schema_col.type == DOUBLE) {
+            double value;
+            file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
+            // cout << "DOUBLE " << value << " | ";
+            stream << value;
+        }  else if (schema_col.type == INT64 || schema_col.type == FOREIGN_KEY) {
+            long long value;
+            file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
+            // cout << "INT64 " << value << " | ";
+            stream << value;
+        }
+        
+        string string_value;
+        string_value = stream.str();
+        
+        // Push the value to the line vector
+        row.push_back(string_value);
+    }
+    // cout << endl;
+    file.close();
+    
+    return row;
+}
+
+vector<string> Table::getRowById(long long _id) {
+    vector<string> row;
+    //Iterate through the Table::header
+    //The pair is defined like: (first value = _id, second value = registry_position)
+    int idx = distance(header->begin(), lower_bound(header->begin(), header->end(), 
+       make_pair(_id, numeric_limits<long long>::min())));
+    
+    // If the found index is equals to the desired index, the _id was found
+    auto pair = header->at(idx);
+    if (pair.first == _id) {
+        row = getRow(pair.second);
+        // print(&row);
+    }
+    return row;
+}
+
+void Table::drop() {
+    remove(this->path.c_str());
+    remove(this->header_file_path.c_str());
+    this->header->clear();
+}
+
+Join Table::join(string this_collumn_name, Table* other_table, string other_collumn_name, JoinType join_type) {
+    return Join(this, this_collumn_name, other_table, other_collumn_name, join_type);
+}
+
 #endif //TABLE_H

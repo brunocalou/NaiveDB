@@ -1,0 +1,2 @@
+company_id:foreign_key
+person_id:foreign_key
