@@ -4,6 +4,8 @@
 #include "util.h"
 #include "schema.h"
 #include "cursor.h"
+#include "queryable.h"
+#include "join.h"
 #include <fstream>
 #include <time.h>
 #include <string.h>
@@ -11,31 +13,8 @@
 #include <utility> //std::pair
 #include <stdio.h>
 
-/**
- * Stores the header of a registry. The header is saved for each registry
- * e.g: | HEADER | ROW_1_COL_1 | ROW_1_COL_2 | HEADER | ROW_2_COL1 | ROW_2_COL_2 | 
- */
-struct RegistryHeader {
-    char table_name[255];
-    unsigned registry_size; // size of the registry, header included
-    time_t time_stamp;
-};
 
-/**
- * Stores the position of every RegistryHeader of a table
- * e.g: for a database like | HEADER | 64_BITS_BODY | HEADER | 32_BITS_BODY | HEADER | ...
- *      the Header file will be like | ID_0 | 0 | ID_1 | 64 + HEADER_SIZE | ID_2 | 64 + 32 + 2 * HEADER_SIZE | ...
- * Note that the header file contains registry_positions with FIXED size, so each position is
- * stored by the same amount of bits (in this case, long long (64 bits))
- */
-struct HeaderFile {
-    long long _id;
-    long long registry_position;
-    string path;
-};
-
-typedef vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > header_t;
-class Table {
+class Table : public Queryable{
 private:
     unsigned HEADER_SIZE;
 
@@ -91,6 +70,7 @@ public:
     void setSchema(Schema schema);
 
     Schema getSchema();
+    header_t * getHeader();
     
     /*****************************************
      ************* QUERY METHODS *************
@@ -119,20 +99,8 @@ public:
      */
     vector<string> getRowById(long long _id);
     
-    /**
-     *Perform a simple inner join using the tables choosed collumns
-     *the result is a vector of vector of registry positions
-     * eg: Consider the tables "Person" and "Worked" as below:
-     * Person id | name             Worked  id_company | id_person
-     *         9 | Jhoe  (position 111)          77    |     9        (position 555)
-     *        10 | Marta (position 222)          35    |    10        (position 666)       
-     *                                           44    |    10        (position 777)
-     *
-     * In this case, the result would be a vector below:
-     * [ [111,555], [222,666],[222,777]] 
-     *@return a vector cointaining a vector of the registry positions
-     */
-    vector<vector<long long>>* naiveJoin(string thisCollumn, Table otherTable, string otherCollumn);
+    
+    Join join(string thisCollumn, Table* otherTable, string otherCollumn, JoinType join_type);
     /**
      * Deletes the table and all its associated files
      */
@@ -186,7 +154,7 @@ public:
     void printHeaderFile(int number_of_values = -1);
 };
 
-Table::Table(string name) {
+Table::Table(string name)  {
     this->name = name;
     this->path = name + ".dat";
     this->header_file_path = name + "_h.dat";
@@ -213,6 +181,11 @@ void Table::setSchema(Schema schema) {
 
 Schema Table::getSchema(){
     return this->schema;
+}
+
+
+header_t * Table::getHeader(){
+    return this->header;
 }
 
 void Table::loadHeader() {
@@ -626,40 +599,9 @@ void Table::drop() {
     this->header->clear();
 }
 
-vector<vector<long long>>* Table::naiveJoin(string thisCollumnName, Table otherTable, string otherCollumnName) {
-    //get the order of the choosen collumns
-    int thisCollumnPosition = schema.getColPosition(thisCollumnName);
-    int otherCollumnPosition = otherTable.schema.getColPosition(otherCollumnName);
-
-    //vector to be returned
-    vector<vector<long long>>* joinResult = new vector<vector<long long>>;
+Join Table::join(string this_collumn_name, Table* other_table, string other_collumn_name, JoinType join_type) {
     
-
-    int counter = 0;
-
-    while (counter != header->size()) { // Iterate over all of this table
-        
-        vector<string> thisRow = getRow(header->at(counter).second);
-
-        // for eache Row in this table, search for all matches in the other table
-        for(int i=0; i<otherTable.header->size(); i++){
-            vector<string> otherRow = otherTable.getRow(otherTable.header->at(i).second);
-        
-            if(thisRow.at(thisCollumnPosition) == otherRow.at(otherCollumnPosition)){
-                //When matched, insert the registries position into the vector to be returned
-                vector<long long> joinRow;
-
-                //get both registries positions
-                joinRow.push_back(header->at(counter).second);
-                joinRow.push_back(otherTable.header->at(i).second);
-                joinResult->push_back(joinRow);
-                //For debugging purpouse, cout << "insterted "<< header->at(counter).second<< " and " << otherTable.header->at(i).second << endl;
-            }
-        }
-        counter ++;
-        
-    }
-    return joinResult;
+    return Join(this, this_collumn_name, other_table, other_collumn_name, join_type);
 }
 
 #endif //TABLE_H

@@ -38,18 +38,9 @@ int main() {
     JoinBenchmark joinbenchmark(&company_table, &person_table, &worked_table);
     joinbenchmark.runBenchmark();
     
-    vector<vector<long long>>* joinResult = person_table.naiveJoin("_id", worked_table, "person_id");
-    
-    //Prints the joinned rows, using the joinResult structure
-    for(int i=0; i<=20; i++){
-    	for(int personCollumn=0; personCollumn <person_table.getSchema().getCols()->size(); personCollumn++){
-    		cout<<person_table.getRow(joinResult->at(i).at(0)).at(personCollumn)<< " | ";
-    	}
-    	for(int workedCollumn=0; workedCollumn <worked_table.getSchema().getCols()->size(); workedCollumn++){
-    		cout<<worked_table.getRow(joinResult->at(i).at(1)).at(workedCollumn)<< " | ";
-    	}
-    	cout <<endl;
-    }
+    Join join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
+    join_result.print(20);
+
 
     person_table.drop();
     company_table.drop();
