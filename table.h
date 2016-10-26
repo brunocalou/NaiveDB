@@ -322,7 +322,7 @@ void Table::print(int number_of_values) {
     cout << "Printing " << name << " table" << endl;
     int counter = 0;
     while (counter != number_of_values) {
-        cout << "headerSize= "<< header->size()<< endl;
+        // cout << "headerSize= "<< header->size()<< endl;
         if (counter == header->size()) {
             break;
         }
@@ -600,7 +600,6 @@ void Table::drop() {
 }
 
 Join Table::join(string this_collumn_name, Table* other_table, string other_collumn_name, JoinType join_type) {
-    
     return Join(this, this_collumn_name, other_table, other_collumn_name, join_type);
 }
 

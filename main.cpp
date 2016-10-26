@@ -41,16 +41,8 @@ int main() {
     Join join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
     join_result.print(20);
 
-
     person_table.drop();
     company_table.drop();
     worked_table.drop();
-	    
-    
-
-        // for (vector<string>::iterator it = thisRow.begin(); it != thisRow.end(); it++) {
-        //     cout << (*it) << " | ";
-        // }
-        // cout << endl;
     return 0;
 }

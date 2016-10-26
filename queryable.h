@@ -28,7 +28,6 @@ struct HeaderFile {
 
 typedef vector<pair<decltype(HeaderFile::_id), decltype(HeaderFile::registry_position)> > header_t;
 
-
 class Queryable {
 public:
   virtual vector<string> getRow(long long registry_position) =0;
