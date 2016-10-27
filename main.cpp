@@ -38,13 +38,13 @@ int main() {
     JoinBenchmark joinbenchmark(&company_table, &person_table, &worked_table);
     joinbenchmark.runBenchmark();
     
-    // cout << "\nNested index join" << endl;
-    // Join nested_index_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
-    // nested_index_join_result.print(20);
+    cout << "\nNested index join" << endl;
+    Join nested_index_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
+    nested_index_join_result.print(20);
     
-    // cout << "\nMerge join" << endl;
-    // Join merge_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::MERGE);
-    // merge_join_result.print(20);
+    cout << "\nMerge join" << endl;
+    Join merge_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::MERGE);
+    merge_join_result.print(20);
     
     cout << "\nHash join" << endl;
     Join hash_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::HASH);

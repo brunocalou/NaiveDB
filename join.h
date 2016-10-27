@@ -140,37 +140,38 @@ void Join::hashJoin(Queryable *build_table, int build_table_column_position, Que
 }
 
 void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
-    header_t *table_a = this_table->getHeader();
-    header_t *table_b = other_table->getHeader();
-
-    // Sorts the headers
+    cout << "Start merge join" << endl;
+    vector<pair<string, long long>> *table_a = this_table->getColumn(this_column_position);
+    vector<pair<string, long long>> *table_b = other_table->getColumn(other_column_position);
+    cout << "Start sort on merge join" << endl;
     sort(table_a->begin(), table_a->end(),
-        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
-            return left.first < right.first;
+        [](const pair<string, long long> &left, const pair<string, long long> &right){
+            return left.first.compare(right.first) <= 0;
         });
     sort(table_b->begin(), table_b->end(),
-        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
-            return left.first < right.first;
+        [](const pair<string, long long> &left, const pair<string, long long> &right){
+            return left.first.compare(right.first) <= 0;
         });
+    cout << "End sort on merge join" << endl;
 
-    unsigned int n = table_a->size();
-    unsigned int m = table_b->size();
-
-    unsigned int i = 0;
-    unsigned int j = 0;
+    int n = table_a->size();
+    int m = table_b->size();
+    int i = 0;
+    int j = 0;
     int l, k;
 
-    while(i < n and j < m) {
-        if(table_a->at(i).first > table_b->at(j).first) {
+    cout << "Start loop on merge join" << endl;
+    while(i < n and j < m){ 
+        if(table_a->at(i).first.compare(table_b->at(j).first) > 0) {
             j++;
-        } else if(table_a->at(i).first < table_b->at(j).first) {
+        } else if(table_a->at(i).first.compare(table_b->at(j).first) < 0) {
             i++;
         } else {
             l = i;
 
-            while(l < n and table_a->at(l).first == table_a->at(i).first) {
+            while(l < n and table_a->at(l).first.compare(table_a->at(i).first) == 0) {
                 k = j;
-                while(k < m and table_b->at(k).first == table_b->at(j).first) {
+                while(k < m and table_b->at(k).first.compare(table_b->at(j).first) == 0) {
                     this->join_result->push_back({table_a->at(l).second, table_b->at(k).second});
                     k++;
                 }   
@@ -180,60 +181,14 @@ void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable*
             i = l;
             j = k;
         }   
-    }
+    }   
+
+    delete table_a;
+    delete table_b;
+
+    cout << this->join_result->size() << endl;
+    cout << "End merge join" << endl;
 }
-
-// NOT WORKING
-// void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
-//     cout << "Start merge join" << endl;
-//     vector<pair<string, long long>> *table_a = this_table->getColumn(this_column_position);
-//     vector<pair<string, long long>> *table_b = other_table->getColumn(other_column_position);
-//     cout << "Start sort on merge join" << endl;
-//     sort(table_a->begin(), table_a->end(),
-//         [](const pair<string, long long> &left, const pair<string, long long> &right){
-//             return left.first.compare(right.first) <= 0;
-//         });
-//     sort(table_b->begin(), table_b->end(),
-//         [](const pair<string, long long> &left, const pair<string, long long> &right){
-//             return left.first.compare(right.first) <= 0;
-//         });
-//     cout << "End sort on merge join" << endl;
-
-//     int n = table_a->size();
-//     int m = table_b->size();
-//     int i = 0;
-//     int j = 0;
-//     int l, k;
-
-//     cout << "Start loop on merge join" << endl;
-//     while(i < n and j < m){ 
-//         if(table_a->at(i).first.compare(table_b->at(j).first) > 0) {
-//             j++;
-//         } else if(table_a->at(i).first.compare(table_b->at(j).first) < 0) {
-//             i++;
-//         } else {
-//             l = i;
-
-//             while(l < n and table_a->at(l).first.compare(table_a->at(i).first) == 0) {
-//                 k = j;
-//                 while(k < m and table_b->at(k).first.compare(table_b->at(j).first) == 0) {
-//                     this->join_result->push_back({table_a->at(l).second, table_b->at(k).second});
-//                     k++;
-//                 }   
-//                 l++;
-//             }   
-
-//             i = l;
-//             j = k;
-//         }   
-//     }   
-
-//     // delete table_a;
-//     // delete table_b;
-
-//     cout << this->join_result->size() << endl;
-//     cout << "End merge join" << endl;
-// }
 
 Join::Join(Queryable *this_table, string this_column_name, Queryable* other_table, string other_column_name, JoinType join_type) {
     this->join_result = new vector<vector<long long>>;
