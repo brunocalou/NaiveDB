@@ -623,7 +623,7 @@ vector<pair<string, long long>> *Table::getColumn(int column_position) {
     string stub;
     for(header_t::iterator i = header->begin(); i != header->end(); i++){
         stub = getRow(i->second).at(column_position);
-        table->push_back(make_pair(stub, i->first));
+        table->push_back(make_pair(stub, i->second));
     }
 
     return table;
