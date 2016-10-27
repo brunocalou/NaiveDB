@@ -34,6 +34,8 @@ public:
   virtual vector<string> getRowById(long long _id) =0;
   virtual Schema getSchema() =0;
   virtual header_t* getHeader() =0;
+  virtual vector<pair<string, long long>> *getColumn(string column_name) =0;
+  virtual vector<pair<string, long long>> *getColumn(int column_position) =0;
 };
 
 #endif 

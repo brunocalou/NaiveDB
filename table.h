@@ -152,32 +152,14 @@ public:
      *        all the file wil be printed
      */
     void printHeaderFile(int number_of_values = -1);
-    
-    /**
-     * Returns a merge between this table and a table passed as argument.
-     * @param other_table an object that represents the other table
-     *        that should be used on the join
-     * @param this_column_name a string with the name of the column belonging
-     *        to this table that will be used on the join.
-     * @param other_column_name a string with the name of the column belonging
-     *        to the other table that will be used on the join.
-     *
-     */
-     vector<vector<long long> > *mergeJoin(string this_column_name, Table other_table, string other_column_name);
-     
-     /**
-      * Same as mergeJoin(string this_column_name, Table other_table, string other_column_name), but
-      * it uses the in-memory header
-      */
-     vector<vector<long long> > *mergeJoin(Table other_table);
      
     /**
      * Gets a column from the file based on the comlumn name.
      * The return value contains a vector of "column value" and "line offset" tuples.
      * @param column_name a string with the name of the column that should be fetched.
-     * 
      */
     vector<pair<string, long long>> *getColumn(string column_name);
+    vector<pair<string, long long>> *getColumn(int column_position);
 };
 
 
@@ -626,113 +608,16 @@ void Table::drop() {
     this->header->clear();
 }
 
-Join Table::join(string this_collumn_name, Table* other_table, string other_collumn_name, JoinType join_type) {
-    return Join(this, this_collumn_name, other_table, other_collumn_name, join_type);
+Join Table::join(string this_column_name, Table* other_table, string other_column_name, JoinType join_type) {
+    return Join(this, this_column_name, other_table, other_column_name, join_type);
 }
 
-vector<vector<long long>> *Table::mergeJoin(Table other_table) {
-    header_t *table_a = header;
-    header_t *table_b = other_table.header;
-
-    // Sorts the headers
-    sort(table_a->begin(), table_a->end(),
-        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
-            return left.first < right.first;
-        });
-    sort(table_b->begin(), table_b->end(),
-        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
-            return left.first < right.first;
-        });
-
-    unsigned int n = header->size();
-    unsigned int m = other_table.header->size();
-
-    unsigned int i = 0;
-    unsigned int j = 0;
-    int l, k;
-
-    vector<vector<long long>> *return_val = new vector<vector<long long> >;
-
-    while(i < n and j < m) {
-        if(table_a->at(i).first > table_b->at(j).first) {
-            j++;
-        } else if(table_a->at(i).first < table_b->at(j).first) {
-            i++;
-        } else {
-            l = i;
-
-            while(l < n and table_a->at(l).first == table_a->at(i).first) {
-                k = j;
-                while(k < m and table_b->at(k).first == table_b->at(j).first) {
-                    return_val->push_back({table_a->at(l).second, table_b->at(k).second});
-                    k++;
-                }   
-                l++;
-            }   
-
-            i = l;
-            j = k;
-        }   
-    }   
-
-    return return_val;
-}
-
-vector<vector<long long> > *Table::mergeJoin(string this_column_name, Table other_table, string other_column_name) {
-
-    vector<pair<string, long long>> *table_a = getColumn(this_column_name);
-    vector<pair<string, long long>> *table_b = other_table.getColumn(other_column_name);
-
-    sort(table_a->begin(), table_a->end(),
-        [](const pair<string, long long> &left, const pair<string, long long> &right){
-            return left.first.compare(right.first) <= 0;
-        });
-    sort(table_b->begin(), table_b->end(),
-        [](const pair<string, long long> &left, const pair<string, long long> &right){
-            return left.first.compare(right.first) <= 0;
-        });
-
-    vector<vector<long long>> *return_val = new vector<vector<long long> >;
-    int n = table_a->size();
-    int m = table_b->size();
-    int i = 0;
-    int j = 0;
-    int l, k;
-
-    while(i < n and j < m){ 
-        if(table_a->at(i).first.compare(table_b->at(j).first) > 0) {
-            j++;
-        } else if(table_a->at(i).first.compare(table_b->at(j).first) < 0) {
-            i++;
-        } else {
-            l = i;
-
-            while(l < n and table_a->at(l).first.compare(table_a->at(i).first) == 0) {
-                k = j;
-                while(k < m and table_b->at(k).first.compare(table_b->at(j).first) == 0) {
-                    return_val->push_back({table_a->at(l).second, table_b->at(k).second});
-                    k++;
-                }   
-                l++;
-            }   
-
-            i = l;
-            j = k;
-        }   
-    }   
-
-    delete table_a;
-    delete table_b;
-
-    cout << return_val->size() << endl;
-
-    return return_val;
-}
-
-vector<pair<string, long long>> *Table::getColumn(string column_name){
+vector<pair<string, long long>> *Table::getColumn(string column_name) {
     int column_position = schema.getColPosition(column_name);
-    // If it returns -1 the function should throw an exception.
+    return getColumn(column_position);
+}
 
+vector<pair<string, long long>> *Table::getColumn(int column_position) {
     vector<pair<string, long long>> *table = new vector<pair<string, long long>>;
 
     string stub;

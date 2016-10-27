@@ -24,7 +24,25 @@ private:
     /**
      * Performs the Nested Index Join. This method is called inside the constructor
      */
-    vector<vector<long long>>* nestedIndexJoin(Queryable *this_table, int this_column_name, Queryable* other_table, int other_column_name);
+    void nestedIndexJoin(Queryable *this_table, int this_column_name, Queryable* other_table, int other_column_name);
+    
+    /**
+     * Returns a merge between this table and a table passed as argument. This implementation assumes join attributes
+     * are UNIQUE
+     * @param other_table an object that represents the other table
+     *        that should be used on the join
+     * @param this_column_name a string with the name of the column belonging
+     *        to this table that will be used on the join.
+     * @param other_column_name a string with the name of the column belonging
+     *        to the other table that will be used on the join.
+     */
+     void mergeJoin(Queryable *this_table, int this_column_name, Queryable* other_table, int other_column_name);
+     
+     /**
+      * Same as mergeJoin(string this_column_name, Table other_table, string other_column_name), but
+      * it uses the in-memory header
+      */
+    //  vector<vector<long long> > *mergeJoin(Table other_table);
     
 public:
 
@@ -60,9 +78,7 @@ public:
     void print(int number_of_values = -1);
 };
 
-vector<vector<long long>>* Join::nestedIndexJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
-    this->join_result = new vector<vector<long long>>;
-
+void Join::nestedIndexJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
     int counter = 0;
 
     while (counter != this_table->getHeader()->size()) { // Iterate over all of this table
@@ -82,7 +98,7 @@ vector<vector<long long>>* Join::nestedIndexJoin(Queryable *this_table, int this
                 join_row.push_back(other_table->getHeader()->at(i).second);
                 this->join_result->push_back(join_row);
 
-                cout << "insterted " << this_table->getHeader()->at(counter).second << " and " << other_table->getHeader()->at(i).second << endl;
+                // cout << "insterted " << this_table->getHeader()->at(counter).second << " and " << other_table->getHeader()->at(i).second << endl;
                 //For debugging purpose, cout << "insterted "<< this_table->getHeader()->at(counter).second<< " and " << other_table->getHeader()->at(i).second << endl;
             }
         }
@@ -90,8 +106,104 @@ vector<vector<long long>>* Join::nestedIndexJoin(Queryable *this_table, int this
     }
 }
 
+void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
+    header_t *table_a = this_table->getHeader();
+    header_t *table_b = other_table->getHeader();
+
+    // Sorts the headers
+    sort(table_a->begin(), table_a->end(),
+        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
+            return left.first < right.first;
+        });
+    sort(table_b->begin(), table_b->end(),
+        [](const pair<long long, long long> &left, const pair<long long, long long> &right) {
+            return left.first < right.first;
+        });
+
+    unsigned int n = table_a->size();
+    unsigned int m = table_b->size();
+
+    unsigned int i = 0;
+    unsigned int j = 0;
+    int l, k;
+
+    while(i < n and j < m) {
+        if(table_a->at(i).first > table_b->at(j).first) {
+            j++;
+        } else if(table_a->at(i).first < table_b->at(j).first) {
+            i++;
+        } else {
+            l = i;
+
+            while(l < n and table_a->at(l).first == table_a->at(i).first) {
+                k = j;
+                while(k < m and table_b->at(k).first == table_b->at(j).first) {
+                    this->join_result->push_back({table_a->at(l).second, table_b->at(k).second});
+                    k++;
+                }   
+                l++;
+            }   
+
+            i = l;
+            j = k;
+        }   
+    }
+}
+
+// NOT WORKING
+// void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
+//     cout << "Start merge join" << endl;
+//     vector<pair<string, long long>> *table_a = this_table->getColumn(this_column_position);
+//     vector<pair<string, long long>> *table_b = other_table->getColumn(other_column_position);
+//     cout << "Start sort on merge join" << endl;
+//     sort(table_a->begin(), table_a->end(),
+//         [](const pair<string, long long> &left, const pair<string, long long> &right){
+//             return left.first.compare(right.first) <= 0;
+//         });
+//     sort(table_b->begin(), table_b->end(),
+//         [](const pair<string, long long> &left, const pair<string, long long> &right){
+//             return left.first.compare(right.first) <= 0;
+//         });
+//     cout << "End sort on merge join" << endl;
+
+//     int n = table_a->size();
+//     int m = table_b->size();
+//     int i = 0;
+//     int j = 0;
+//     int l, k;
+
+//     cout << "Start loop on merge join" << endl;
+//     while(i < n and j < m){ 
+//         if(table_a->at(i).first.compare(table_b->at(j).first) > 0) {
+//             j++;
+//         } else if(table_a->at(i).first.compare(table_b->at(j).first) < 0) {
+//             i++;
+//         } else {
+//             l = i;
+
+//             while(l < n and table_a->at(l).first.compare(table_a->at(i).first) == 0) {
+//                 k = j;
+//                 while(k < m and table_b->at(k).first.compare(table_b->at(j).first) == 0) {
+//                     this->join_result->push_back({table_a->at(l).second, table_b->at(k).second});
+//                     k++;
+//                 }   
+//                 l++;
+//             }   
+
+//             i = l;
+//             j = k;
+//         }   
+//     }   
+
+//     // delete table_a;
+//     // delete table_b;
+
+//     cout << this->join_result->size() << endl;
+//     cout << "End merge join" << endl;
+// }
+
 Join::Join(Queryable *this_table, string this_column_name, Queryable* other_table, string other_column_name, JoinType join_type) {
-    join_result = NULL;
+    this->join_result = new vector<vector<long long>>;
 
     //saves the tables for future use
     tables.push_back(this_table);
@@ -102,10 +214,10 @@ Join::Join(Queryable *this_table, string this_column_name, Queryable* other_tabl
     int other_column_position = other_table->getSchema().getColPosition(other_column_name);
     
     switch(join_type) {
-        case NESTED_INDEX  : nestedIndexJoin(this_table,this_column_position,other_table,other_column_position); break;
+        case NESTED_INDEX  : nestedIndexJoin(this_table, this_column_position, other_table, other_column_position); break;
         case NESTED  : break; // TODO
         case HASH  : break; // TODO
-        case MERGE  : break; // TODO
+        case MERGE  : mergeJoin(this_table, this_column_position, other_table, other_column_position); break;
     }
 }
 
@@ -129,7 +241,7 @@ void Join::print(int number_of_values) {
 }
 
 Join::~Join() {
-    if (this->join_result != NULL) delete this->join_result;
+    delete this->join_result;
 }
 
 #endif //JOIN_H
