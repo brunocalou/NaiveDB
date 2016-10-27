@@ -110,7 +110,8 @@ public:
       * method will return sizeof(char) * 255 + sizeof(float)
       * @return the total size of the schema
       */
-      unsigned getSize(); 
+      unsigned getSize();
+      int getColPosition(string column_name);
 };
 
 Schema::Schema() {
@@ -206,6 +207,17 @@ unsigned Schema::getSize() {
 
 int Schema::getNumberOfCols() {
     return cols.size();
+}
+
+int Schema::getColPosition(string column_name){
+    int col_position = 0;
+    for(col_position; col_position < size; col_position++){
+        if(cols.at(col_position).key == column_name)
+            return col_position;
+    }
+
+    return -1;
+
 }
  
  #endif //Schema_H
