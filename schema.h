@@ -122,7 +122,7 @@ public:
       * method will return sizeof(char) * 255 + sizeof(float)
       * @return the total size of the schema
       */
-      unsigned getSize(); 
+      unsigned getSize();
 };
 
 Schema::Schema() {
@@ -203,7 +203,7 @@ int Schema::getColPosition(string key){
         }
     }
 
-    throw std::invalid_argument( "There is no collumn with the name \""+key+"\" in this Schema");
+    return -1;
 }
 
 void Schema::addCol(string key, SchemaType type) {
