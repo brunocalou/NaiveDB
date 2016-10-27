@@ -628,6 +628,8 @@ vector<pair<string, long long>> *Table::getColumn(string column_name) {
 }
 
 vector<pair<string, long long>> *Table::getColumn(int column_position) {
+    if (column_position < 0) return NULL;
+    
     vector<pair<string, long long>> *table = new vector<pair<string, long long>>;
 
     string stub;
