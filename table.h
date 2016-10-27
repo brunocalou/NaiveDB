@@ -23,27 +23,27 @@ private:
     string path;
     string header_file_path;
     header_t * header; // _id, registry_position
-    
+
     friend class TableBenchmark;
-    
+
     /**
      * Save a value to the file using the correct type and size. The file
      * will not be opened nor closed inside this method
      */
     void convertAndSave(ofstream *file, string * value, SchemaCol * schema_col);
-     
+
     /**
      * Inserts the registry_position on the header file. The insertion will
      * append the new registry_position to the end of the header file and will
      * update the header variable
      */
-    bool insertOnHeaderFile(HeaderFile * header_file);
-     
+    void insertOnHeaderFile(HeaderFile * header_file);
+
     /**
      * Load the table header from the memory
      */
     void loadHeader();
-    
+
 public:
 
     /**
@@ -52,17 +52,17 @@ public:
      * @see Table::loadHeader
      */
     Table(string name);
-    
+
     /**
      * @destructor
      */
     ~Table();
-    
+
     /**
      * Import the schema using the Schema standard method
      */
     void importSchema(const string & path);
-    
+
     /**
      * Set the schema to be used
      * @see Schema
@@ -71,11 +71,11 @@ public:
 
     Schema getSchema();
     header_t * getHeader();
-    
+
     /*****************************************
      ************* QUERY METHODS *************
      *****************************************/
-    
+
     /**
      * Insert a row at the end of the table. Note that no consistency test
      * is made to ensure uniqueness of any element and the primary key is managed
@@ -86,26 +86,26 @@ public:
      * @return the _id of the inserted item (used as primary key)
      */
     long long insert(vector<string> row);
-    
+
     /**
      * Get a line from the file, given the registry position.
      * @return a vector containing the _id and the row content
      */
     vector<string> getRow(long long registry_position);
-    
+
     /**
      * Get a row from the file, given the specified _id. This
      * method uses the binary search algorithm
      */
     vector<string> getRowById(long long _id);
-    
-    
+
+
     Join join(string thisCollumn, Table* otherTable, string otherCollumn, JoinType join_type);
     /**
      * Deletes the table and all its associated files
      */
     void drop();
-     
+
     /**
      * Perform a query. Note that the string is case insensitive and the FROM clause is omitted
      * because the FROM is for the table instance.
@@ -118,7 +118,7 @@ public:
      * @return the cursor associated with the query
      */
     Cursor query(string q);
-     
+
     /**
      * Perform a query
      * @see Table::query(string)
@@ -129,23 +129,23 @@ public:
             vector<string> & where_args,
             vector<string> & where_comparators,
             vector<string> & where_values);
-     
+
     /*****************************************
      ********** CONVENIENCE METHODS **********
      *****************************************/
-     
+
     /**
      * Read a CSV file, convert and export it to a binary file
      */
     void convertFromCSV(const string & path);
-    
+
     /**
      * Print the table binary file (for debugging only)
      * @param number_of_values the number of values to print. If set to -1
      *        all the file wil be printed
      */
     void print(int number_of_values = -1);
-    
+
     /**
      * Print the header file (for debugging only)
      * @param number_of_values the number of values to print. If set to -1
@@ -160,11 +160,11 @@ Table::Table(string name)  {
     this->header_file_path = name + "_h.dat";
     this->header = new header_t();
     loadHeader();
-    
+
     RegistryHeader reg_header;
     Table::HEADER_SIZE = sizeof(reg_header.table_name) + sizeof(reg_header.registry_size) + sizeof(reg_header.time_stamp);
     // cout << "HEADER_SIZE = " << HEADER_SIZE << endl;
-    
+
 }
 
 Table::~Table() {
@@ -191,7 +191,7 @@ header_t * Table::getHeader(){
 void Table::loadHeader() {
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
-    
+
     while (!file.eof()) {
         HeaderFile header;
         if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
@@ -201,7 +201,7 @@ void Table::loadHeader() {
             this->header->push_back(pair<decltype(header._id), decltype(header.registry_position) > (header._id, header.registry_position));
         }
     }
-    
+
     file.close();
 }
 
@@ -235,41 +235,41 @@ long long Table::insert(vector<string> row) {
     //TODO: Handle exceptions and return 0 on failure
     ofstream file;
     file.open(path.c_str(), ios::binary | ios::app);
-    
+
     //Save the header position on the header file
     HeaderFile header_file;
     header_file.path = this->header_file_path;
     header_file._id = this->header->size();
     header_file.registry_position = file.tellp(); // Get the current position on the file stream
     insertOnHeaderFile(&header_file);
-    
+
     //Save the header
     RegistryHeader header;
     strncpy(header.table_name, &name.c_str()[0], sizeof(header.table_name));
     header.registry_size = HEADER_SIZE + schema.getSize();
     time (& header.time_stamp);
-    
+
     file.write(header.table_name, sizeof(header.table_name));
     file.write(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
     file.write(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
-    
+
     // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
-    
+
     //Push the _id to the row
     string _id_str;
-    
+
     std::stringstream strstream;
     strstream << header_file._id;
     strstream >> _id_str;
-    
+
     //Insert the _id on the first position so it matches the SchemaCol
     row.insert(row.begin(), _id_str);
-    
+
     //Export the table according to the schema
     vector<SchemaCol>* schema_cols = schema.getCols();
-    
+
     int schema_col_position = 0;
-    
+
     for (vector<string>::iterator row_it = row.begin(); row_it != row.end(); row_it++) {
         //Iterate through the row and save the values
         //TODO: Consider the array size
@@ -277,23 +277,23 @@ long long Table::insert(vector<string> row) {
         schema_col_position ++;
     }
     // cout << endl;
-    
+
     file.close();
-    
+
     return header_file._id;
 }
 
-bool Table::insertOnHeaderFile(HeaderFile * header_file) {
+void Table::insertOnHeaderFile(HeaderFile * header_file) {
     ofstream file;
     file.open(header_file->path.c_str(), ios::binary | ios::app);
     file.write(reinterpret_cast<char *> (& header_file->_id), sizeof(header_file->_id));
     file.write(reinterpret_cast<char *> (& header_file->registry_position), sizeof(header_file->registry_position));
-    
+
     header->push_back(
         pair<decltype(header_file->_id), decltype(header_file->registry_position)> (
             header_file->_id,
             header_file->registry_position));
-    
+
     file.close();
 }
 
@@ -302,7 +302,7 @@ void Table::printHeaderFile(int number_of_values) {
     ifstream file;
     file.open(header_file_path.c_str(), ios::binary);
     int counter = 0;
-    
+
     while (!file.eof() && counter != number_of_values) {
         HeaderFile header;
         if (!file.read(reinterpret_cast<char *> (&header._id), sizeof(header._id)) ||
@@ -314,7 +314,7 @@ void Table::printHeaderFile(int number_of_values) {
         counter ++;
     }
     cout << endl;
-    
+
     file.close();
 }
 
@@ -327,12 +327,12 @@ void Table::print(int number_of_values) {
             break;
         }
         vector<string> row = getRow(header->at(counter).second);
-        
+
         //print the line
         for (vector<string>::iterator it = row.begin(); it != row.end(); it++) {
             cout << (*it) << " | ";
         }
-        
+
         counter ++;
         cout << endl;
     }
@@ -342,43 +342,43 @@ void Table::print(int number_of_values) {
 Cursor Table::query(string q) {
     //Transform the query to lower case
     std::transform(q.begin(), q.end(), q.begin(), ::tolower);
-    
+
     //Store the select arguments.
     //e.g.: SELECT arg1, arg2
     vector<string> select;
-    
+
     //Store the where arguments, values and comparators
     //e.g.: WHERE arg1 = val1, arg2 > val2,
     vector<string> where_args;
     vector<string> where_comparators;
     vector<string> where_vals;
-    
+
     //Helper variables to store the parsing state
     bool parsing_select = false;
     bool parsing_where = false;
-    
+
     //Hold if a word is beeing parsed at the moment. If a space ' ' or a comma ',' is
     //parsed, the variable is set false
     bool parsing_word = false;
-    
+
     bool parsing_where_arg = false;
     bool parsing_where_comparator = false;
     bool parsing_where_val = false;
-    
+
     string string_buffer;
-    
+
     bool ignore_space = false;
-    
+
     for (string::iterator it = q.begin(); it != q.end(); it++) {
         char character = (*it);
-        
+
         if (character == '\'') {
             ignore_space = !ignore_space;
             continue;
-            
+
         } else if (character != ' ' || character != ',') {
             parsing_word = true;
-            
+
         } else {
             if (character == ' ' && ignore_space) {
                 parsing_word = true;
@@ -386,7 +386,7 @@ Cursor Table::query(string q) {
                 parsing_word = false;
             }
         }
-        
+
         // Check for the select word
         if (!parsing_select && !parsing_where) {
             if (character != ' ') {
@@ -400,7 +400,7 @@ Cursor Table::query(string q) {
                 cout << "Changing to WHERE" << endl;
                 parsing_where = true;
                 parsing_where_arg = true;
-                parsing_select = false;                
+                parsing_select = false;
                 string_buffer.clear();
             }
         } else if (character != ' ' || ignore_space) {
@@ -424,7 +424,7 @@ Cursor Table::query(string q) {
                         string_buffer.clear();
                     }
                 }
-                
+
             } else if (parsing_where) {
                 if (character == ',') {
                     if (parsing_where_val) {
@@ -455,7 +455,7 @@ Cursor Table::query(string q) {
                             string_buffer.clear();
                         }
                     }
-                    
+
                     string_buffer += character;
                 }
             }
@@ -473,39 +473,39 @@ Cursor Table::query(string q) {
     if (parsing_select) {
         select.push_back(string_buffer);
         cout << "Final select = " << string_buffer << endl;
-        
+
     } else if (parsing_where && parsing_where_val) {
         where_vals.push_back(string_buffer);
         cout << "Final where value = " << string_buffer << endl;
     }
-    
+
     return query(select, where_args, where_comparators, where_vals);
 }
 
 Cursor Table::query(vector<string> & select, vector<string> & where_args, vector<string> & where_comparators, vector<string> & where_values) {
     //Store the query result
     vector<vector <string> > result;
-    
+
     //TODO: Make the query method
-    
+
     Cursor cursor(schema, result);
     return cursor;
 }
 
 void Table::convertFromCSV(const string & path) {
     string line;
-    
+
     ifstream file;
     file.open(path.c_str());
-    
+
     if (file.is_open()) {
         //Header
         getline(file, line);
-        
+
         //Lines
         while (getline(file, line)) {
             vector<string> words = split(line, ',');
-            
+
             // Insert the line on the database
             insert(words);
         }
@@ -518,26 +518,26 @@ void Table::convertFromCSV(const string & path) {
 vector<string> Table::getRow(long long registry_position) {
     ifstream file;
     file.open(path.c_str(), ios::binary);
-    
+
     // Set the file position
     file.seekg(registry_position);
-    
+
     vector<SchemaCol>* schema_cols = schema.getCols();
     vector<string> row;
-    
+
     //Import the header
     RegistryHeader header;
     file.read(header.table_name, sizeof(header.table_name));
     file.read(reinterpret_cast<char *> (& header.registry_size), sizeof(header.registry_size));
     file.read(reinterpret_cast<char *> (& header.time_stamp), sizeof(header.time_stamp));
-    
+
     // cout << "  | " << header.table_name << " " << header.registry_size << " " << header.time_stamp << " | ";
 
     //Read and convert the values from the file
     for (vector<SchemaCol>::iterator it = schema_cols->begin(); it != schema_cols->end(); it++) {
         SchemaCol & schema_col = *it;
         ostringstream stream;
-        
+
         if (schema_col.type == INT32) {
             int value;
             file.read(reinterpret_cast<char *> (&value), schema_col.getSize());
@@ -564,16 +564,16 @@ vector<string> Table::getRow(long long registry_position) {
             // cout << "INT64 " << value << " | ";
             stream << value;
         }
-        
+
         string string_value;
         string_value = stream.str();
-        
+
         // Push the value to the line vector
         row.push_back(string_value);
     }
     // cout << endl;
     file.close();
-    
+
     return row;
 }
 
@@ -581,9 +581,9 @@ vector<string> Table::getRowById(long long _id) {
     vector<string> row;
     //Iterate through the Table::header
     //The pair is defined like: (first value = _id, second value = registry_position)
-    int idx = distance(header->begin(), lower_bound(header->begin(), header->end(), 
+    int idx = distance(header->begin(), lower_bound(header->begin(), header->end(),
        make_pair(_id, numeric_limits<long long>::min())));
-    
+
     // If the found index is equals to the desired index, the _id was found
     auto pair = header->at(idx);
     if (pair.first == _id) {
@@ -600,7 +600,7 @@ void Table::drop() {
 }
 
 Join Table::join(string this_collumn_name, Table* other_table, string other_collumn_name, JoinType join_type) {
-    
+
     return Join(this, this_collumn_name, other_table, other_collumn_name, join_type);
 }
 
