@@ -24,19 +24,23 @@ private:
     /**
      * Performs the Nested Index Join. This method is called inside the constructor
      */
-    void nestedIndexJoin(Queryable *this_table, int this_column_name, Queryable* other_table, int other_column_name);
+    void nestedIndexJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
     
     /**
-     * Returns a merge between this table and a table passed as argument. This implementation assumes join attributes
-     * are UNIQUE
+     * Performs a merge between this table and a table passed as argument
      * @param other_table an object that represents the other table
      *        that should be used on the join
-     * @param this_column_name a string with the name of the column belonging
+     * @param this_column_position the position of the column belonging
      *        to this table that will be used on the join.
-     * @param other_column_name a string with the name of the column belonging
+     * @param other_column_position a string with the name of the column belonging
      *        to the other table that will be used on the join.
      */
-     void mergeJoin(Queryable *this_table, int this_column_name, Queryable* other_table, int other_column_name);
+     void mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
+     
+     /**
+      * Performs the Hash Join algorithm
+      */
+     void hashJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
      
      /**
       * Same as mergeJoin(string this_column_name, Table other_table, string other_column_name), but
@@ -103,6 +107,35 @@ void Join::nestedIndexJoin(Queryable *this_table, int this_column_position, Quer
             }
         }
         counter ++;
+    }
+}
+
+void Join::hashJoin(Queryable *build_table, int build_table_column_position, Queryable* probe_table, int probe_table_column_position) {
+    // Key: column, value: header registry position
+    map<string, long long> hash_table;
+    
+    //Fill the hash table
+    header_t* hash_header = build_table->getHeader();
+    
+    for (header_t::iterator it = hash_header->begin(); it != hash_header->end(); it++) {
+        string column_value = build_table->getValue(it->first, build_table_column_position);
+        long long registry_position = it->second;
+        
+        hash_table.insert(pair<string, long long>(column_value, registry_position));
+    }
+    
+    // Iterate over the probe table
+    header_t* probe_header = probe_table->getHeader();
+    
+    for (header_t::iterator it = probe_header->begin(); it != probe_header->end(); it++) {
+        string column_value = probe_table->getValue(it->first, probe_table_column_position);
+        
+        map<string, long long>:: iterator hash_it = hash_table.find(column_value);
+        if (hash_it != hash_table.end()) {
+            // Found it
+            // cout << "Found " << column_value << endl;
+            this->join_result->push_back({hash_it->second, it->second});
+        }
     }
 }
 
@@ -216,7 +249,7 @@ Join::Join(Queryable *this_table, string this_column_name, Queryable* other_tabl
     switch(join_type) {
         case NESTED_INDEX  : nestedIndexJoin(this_table, this_column_position, other_table, other_column_position); break;
         case NESTED  : break; // TODO
-        case HASH  : break; // TODO
+        case HASH  : hashJoin(this_table, this_column_position, other_table, other_column_position); break;
         case MERGE  : mergeJoin(this_table, this_column_position, other_table, other_column_position); break;
     }
 }

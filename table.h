@@ -100,7 +100,7 @@ public:
     vector<string> getRowById(long long _id);
     
     
-    Join join(string thisCollumn, Table* otherTable, string otherCollumn, JoinType join_type);
+    Join join(string this_column, Table* other_table, string other_column, JoinType join_type);
     /**
      * Deletes the table and all its associated files
      */
@@ -160,6 +160,16 @@ public:
      */
     vector<pair<string, long long>> *getColumn(string column_name);
     vector<pair<string, long long>> *getColumn(int column_position);
+    
+    /**
+     * Get the string value of an element of the table
+     */
+    string getValue(long long _id, int column_position);    
+    
+    /**
+     * @return the number of rows
+     */
+    int getNumberOfRows();
 };
 
 
@@ -629,4 +639,16 @@ vector<pair<string, long long>> *Table::getColumn(int column_position) {
     return table;
 }
 
+int Table::getNumberOfRows() {
+    return header->size();
+}
+
+string Table::getValue(long long _id, int column_position) {
+    string value = "";
+    vector<string> row = getRowById(_id);
+    if (column_position < row.size()) {
+        value = row.at(column_position);
+    }
+    return value;
+}
 #endif //TABLE_H

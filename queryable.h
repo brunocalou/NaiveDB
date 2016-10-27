@@ -36,6 +36,8 @@ public:
   virtual header_t* getHeader() =0;
   virtual vector<pair<string, long long>> *getColumn(string column_name) =0;
   virtual vector<pair<string, long long>> *getColumn(int column_position) =0;
+  virtual string getValue(long long _id, int column_position) =0;
+  virtual int getNumberOfRows() =0;
 };
 
 #endif 
