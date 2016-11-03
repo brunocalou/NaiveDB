@@ -5,15 +5,9 @@
 #include "schema.h"
 #include "cursor.h"
 #include "queryable.h"
-#include <fstream>
-#include <time.h>
-#include <string.h>
-#include <algorithm>
-#include <utility> //std::pair
-#include <stdio.h>
 
 //Possible types of join
-enum JoinType { NESTED_INDEX, NESTED, MERGE, HASH };
+enum JoinType { NESTED_LOOP, NESTED, MERGE, HASH };
 
 class Join {
 private:
@@ -24,7 +18,7 @@ private:
     /**
      * Performs the Nested Index Join. This method is called inside the constructor
      */
-    void nestedIndexJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
+    void nestedLoopJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
     
     /**
      * Performs a merge between this table and a table passed as argument
@@ -41,12 +35,6 @@ private:
       * Performs the Hash Join algorithm
       */
      void hashJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position);
-     
-     /**
-      * Same as mergeJoin(string this_column_name, Table other_table, string other_column_name), but
-      * it uses the in-memory header
-      */
-    //  vector<vector<long long> > *mergeJoin(Table other_table);
     
 public:
 
@@ -82,14 +70,14 @@ public:
     void print(int number_of_values = -1);
 };
 
-void Join::nestedIndexJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
+void Join::nestedLoopJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
     int counter = 0;
 
     while (counter != this_table->getHeader()->size()) { // Iterate over all of this table
         
         vector<string> this_row = this_table->getRow(this_table->getHeader()->at(counter).second);
 
-        // for eache Row in this table, search for all matches in the other table
+        // for each Row in this table, search for all matches in the other table
         for(int i=0; i < other_table->getHeader()->size(); i++){
             vector<string> other_row = other_table->getRow(other_table->getHeader()->at(i).second);
         
@@ -140,10 +128,10 @@ void Join::hashJoin(Queryable *build_table, int build_table_column_position, Que
 }
 
 void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable* other_table, int other_column_position) {
-    cout << "Start merge join" << endl;
+    // cout << "Start merge join" << endl;
     vector<pair<string, long long>> *table_a = this_table->getColumn(this_column_position);
     vector<pair<string, long long>> *table_b = other_table->getColumn(other_column_position);
-    cout << "Start sort on merge join" << endl;
+    // cout << "Start sort on merge join" << endl;
     sort(table_a->begin(), table_a->end(),
         [](const pair<string, long long> &left, const pair<string, long long> &right){
             return left.first.compare(right.first) <= 0;
@@ -152,7 +140,7 @@ void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable*
         [](const pair<string, long long> &left, const pair<string, long long> &right){
             return left.first.compare(right.first) <= 0;
         });
-    cout << "End sort on merge join" << endl;
+    // cout << "End sort on merge join" << endl;
 
     int n = table_a->size();
     int m = table_b->size();
@@ -160,7 +148,7 @@ void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable*
     int j = 0;
     int l, k;
 
-    cout << "Start loop on merge join" << endl;
+    // cout << "Start loop on merge join" << endl;
     while(i < n and j < m){ 
         if(table_a->at(i).first.compare(table_b->at(j).first) > 0) {
             j++;
@@ -186,8 +174,8 @@ void Join::mergeJoin(Queryable *this_table, int this_column_position, Queryable*
     delete table_a;
     delete table_b;
 
-    cout << this->join_result->size() << endl;
-    cout << "End merge join" << endl;
+    // cout << this->join_result->size() << endl;
+    // cout << "End merge join" << endl;
 }
 
 Join::Join(Queryable *this_table, string this_column_name, Queryable* other_table, string other_column_name, JoinType join_type) {
@@ -202,7 +190,7 @@ Join::Join(Queryable *this_table, string this_column_name, Queryable* other_tabl
     int other_column_position = other_table->getSchema().getColPosition(other_column_name);
     
     switch(join_type) {
-        case NESTED_INDEX  : nestedIndexJoin(this_table, this_column_position, other_table, other_column_position); break;
+        case NESTED_LOOP  : nestedLoopJoin(this_table, this_column_position, other_table, other_column_position); break;
         case NESTED  : break; // TODO
         case HASH  : hashJoin(this_table, this_column_position, other_table, other_column_position); break;
         case MERGE  : mergeJoin(this_table, this_column_position, other_table, other_column_position); break;

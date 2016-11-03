@@ -35,23 +35,23 @@ int main() {
     worked_table.print(5);
     worked_table.printHeaderFile(5);
     
-    JoinBenchmark joinbenchmark(&company_table, &person_table, &worked_table);
+    JoinBenchmark joinbenchmark(&person_table, "_id", &worked_table, "person_id");
     joinbenchmark.runBenchmark();
     
-    cout << "\nNested index join" << endl;
-    Join nested_index_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
-    nested_index_join_result.print(20);
+    // cout << "\nNested index join" << endl;
+    // Join nested_index_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::NESTED_INDEX);
+    // nested_index_join_result.print(20);
     
-    cout << "\nMerge join" << endl;
-    Join merge_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::MERGE);
-    merge_join_result.print(20);
+    // cout << "\nMerge join" << endl;
+    // Join merge_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::MERGE);
+    // merge_join_result.print(20);
     
-    cout << "\nHash join" << endl;
-    Join hash_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::HASH);
-    hash_join_result.print(20);
+    // cout << "\nHash join" << endl;
+    // Join hash_join_result = person_table.join("_id", &worked_table, "person_id", JoinType::HASH);
+    // hash_join_result.print(20);
 
-    person_table.drop();
-    company_table.drop();
-    worked_table.drop();
+    // person_table.drop();
+    // company_table.drop();
+    // worked_table.drop();
     return 0;
 }

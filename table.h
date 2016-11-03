@@ -628,6 +628,7 @@ vector<pair<string, long long>> *Table::getColumn(string column_name) {
 }
 
 vector<pair<string, long long>> *Table::getColumn(int column_position) {
+    //TODO: Get the column without retrieving the entire row
     if (column_position < 0) return NULL;
     
     vector<pair<string, long long>> *table = new vector<pair<string, long long>>;
@@ -646,6 +647,7 @@ int Table::getNumberOfRows() {
 }
 
 string Table::getValue(long long _id, int column_position) {
+    //TODO: Get the value without retrieving the entire row
     string value = "";
     vector<string> row = getRowById(_id);
     if (column_position < row.size()) {
